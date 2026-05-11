@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where mvn *)",
+      "Bash(del *)",
+      "PowerShell(Test-Path *)",
+      "PowerShell(java *)",
+      "PowerShell(Write-Output 'USER PATH:'; [Environment]::GetEnvironmentVariable\\('Path','User'\\); Write-Output ''; Write-Output 'MACHINE PATH:'; [Environment]::GetEnvironmentVariable\\('Path','Machine'\\))"
+    ]
+  }
+}

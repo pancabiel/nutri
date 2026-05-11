@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AWS Serverless Quarkus HTTP - nutri-backend-1.0.0
+
+Parameters:
+  AnthropicApiKey:
+    Type: String
+    NoEcho: true
+  SupabaseUrl:
+    Type: String
+  SupabaseUser:
+    Type: String
+  SupabasePassword:
+    Type: String
+    NoEcho: true
+
+Globals:
+  Api:
+    EndpointConfiguration: REGIONAL
+    BinaryMediaTypes:
+      - "*/*"
+
+Resources:
+  NutriBackendNative:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: not.used.in.provided.runtime
+      Runtime: provided.al2023
+      CodeUri: target/function.zip
+      MemorySize: 512
+      Policies: AWSLambdaBasicExecutionRole
+      Timeout: 15
+      Environment:
+        Variables:
+          DISABLE_SIGNAL_HANDLERS: true
+          ANTHROPIC_API_KEY: !Ref AnthropicApiKey
+          SUPABASE_DB_URL: !Ref SupabaseUrl
+          SUPABASE_DB_USER: !Ref SupabaseUser
+          SUPABASE_DB_PASSWORD: !Ref SupabasePassword
+      Events:
+        HttpApiEvent:
+          Type: HttpApi
+
+Outputs:
+  NutriBackendNativeApi:
+    Description: URL for application
+    Value: !Sub 'https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/'
+    Export:
+      Name: NutriBackendNativeApi

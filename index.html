@@ -1,0 +1,1287 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f172a" />
+    <title>Nutri — Mockup</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+      html, body, #root { height: 100%; }
+      body {
+        margin: 0;
+        background: #0b1220;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+        color: #0f172a;
+        -webkit-font-smoothing: antialiased;
+      }
+      /* iPhone-like phone frame for desktop */
+      .phone-frame {
+        width: 390px;
+        height: 844px;
+        border-radius: 48px;
+        background: #000;
+        padding: 10px;
+        box-shadow: 0 40px 80px -20px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08);
+      }
+      .phone-screen {
+        width: 100%;
+        height: 100%;
+        border-radius: 40px;
+        overflow: hidden;
+        background: #f8fafc;
+        position: relative;
+      }
+      .notch {
+        position: absolute;
+        top: 10px; left: 50%; transform: translateX(-50%);
+        width: 120px; height: 28px;
+        background: #000; border-radius: 999px; z-index: 50;
+      }
+      @media (max-width: 640px) {
+        body { background: #f8fafc; }
+        .phone-frame { width: 100vw; height: 100vh; padding: 0; border-radius: 0; box-shadow: none; }
+        .phone-screen { border-radius: 0; }
+        .notch { display: none; }
+      }
+      .scroll-hide::-webkit-scrollbar { display: none; }
+      .scroll-hide { scrollbar-width: none; }
+      .fade-in { animation: fade 220ms ease-out; }
+      @keyframes fade { from { opacity: 0; transform: translateY(4px);} to { opacity: 1; transform: none;} }
+      .pop { animation: pop 180ms ease-out; }
+      @keyframes pop { from { transform: scale(.96); opacity: 0;} to { transform: scale(1); opacity: 1;} }
+      .typing-dot { animation: blink 1.2s infinite; }
+      .typing-dot:nth-child(2) { animation-delay: .2s; }
+      .typing-dot:nth-child(3) { animation-delay: .4s; }
+      @keyframes blink { 0%, 80%, 100% { opacity: .2;} 40% { opacity: 1;} }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+    // ---------- Seed data ----------
+    const uid = () => Math.random().toString(36).slice(2, 10);
+
+    const seedProdutos = [
+      { id: uid(), name: "Ovo", brand: "Granja", calories_per_gram: 1.55, protein_per_gram: 0.13, carbs_per_gram: 0.011, fat_per_gram: 0.11 },
+      { id: uid(), name: "Pão francês", brand: null, calories_per_gram: 3.0,  protein_per_gram: 0.08, carbs_per_gram: 0.58,  fat_per_gram: 0.03 },
+      { id: uid(), name: "Maionese", brand: "Hellmann's", calories_per_gram: 6.8, protein_per_gram: 0.01, carbs_per_gram: 0.01, fat_per_gram: 0.75 },
+      { id: uid(), name: "Peito de frango", brand: null, calories_per_gram: 1.65, protein_per_gram: 0.31, carbs_per_gram: 0, fat_per_gram: 0.036 },
+      { id: uid(), name: "Arroz branco cozido", brand: null, calories_per_gram: 1.3, protein_per_gram: 0.027, carbs_per_gram: 0.28, fat_per_gram: 0.003 },
+      { id: uid(), name: "Feijão carioca cozido", brand: null, calories_per_gram: 0.76, protein_per_gram: 0.048, carbs_per_gram: 0.134, fat_per_gram: 0.005 },
+      { id: uid(), name: "Café coado", brand: null, calories_per_gram: 0.02, protein_per_gram: 0.001, carbs_per_gram: 0, fat_per_gram: 0 },
+      { id: uid(), name: "Leite integral", brand: "Piracanjuba", calories_per_gram: 0.61, protein_per_gram: 0.031, carbs_per_gram: 0.046, fat_per_gram: 0.033 },
+      { id: uid(), name: "Banana prata", brand: null, calories_per_gram: 0.89, protein_per_gram: 0.011, carbs_per_gram: 0.23, fat_per_gram: 0.003 },
+      { id: uid(), name: "Aveia em flocos", brand: "Quaker", calories_per_gram: 3.89, protein_per_gram: 0.17, carbs_per_gram: 0.66, fat_per_gram: 0.07 },
+    ];
+
+    const seedComidas = (produtos) => [
+      {
+        id: uid(), name: "Ovos mexidos",
+        items: [
+          { produto_id: produtos.find(p => p.name === "Ovo").id, quantity_grams: 120 },
+        ],
+      },
+      {
+        id: uid(), name: "Sanduíche de frango",
+        items: [
+          { produto_id: produtos.find(p => p.name === "Pão francês").id, quantity_grams: 50 },
+          { produto_id: produtos.find(p => p.name === "Peito de frango").id, quantity_grams: 80 },
+          { produto_id: produtos.find(p => p.name === "Maionese").id, quantity_grams: 8 },
+        ],
+      },
+      {
+        id: uid(), name: "Café com leite",
+        items: [
+          { produto_id: produtos.find(p => p.name === "Café coado").id, quantity_grams: 100 },
+          { produto_id: produtos.find(p => p.name === "Leite integral").id, quantity_grams: 100 },
+        ],
+      },
+      {
+        id: uid(), name: "Arroz com feijão e frango",
+        items: [
+          { produto_id: produtos.find(p => p.name === "Arroz branco cozido").id, quantity_grams: 150 },
+          { produto_id: produtos.find(p => p.name === "Feijão carioca cozido").id, quantity_grams: 80 },
+          { produto_id: produtos.find(p => p.name === "Peito de frango").id, quantity_grams: 120 },
+        ],
+      },
+    ];
+
+    const todayISO = () => new Date().toISOString().slice(0, 10);
+
+    const seedMealDays = (comidas, produtos) => {
+      const today = todayISO();
+      const banana = produtos.find(p => p.name === "Banana prata");
+      const aveia = produtos.find(p => p.name === "Aveia em flocos");
+      const cafeLeite = comidas.find(c => c.name === "Café com leite");
+      return {
+        [today]: {
+          sections: [
+            {
+              id: uid(), name: "Café da manhã", order_index: 0,
+              items: [
+                { id: uid(), name: "Café com leite", quantity: 1, comida_id: cafeLeite.id, calories: compCalories(cafeLeite, produtos), protein: compProtein(cafeLeite, produtos) },
+                { id: uid(), name: "Banana prata", quantity: 90, produto_id: banana.id, calories: Math.round(banana.calories_per_gram * 90), protein: +(banana.protein_per_gram * 90).toFixed(1) },
+                { id: uid(), name: "Aveia em flocos", quantity: 30, produto_id: aveia.id, calories: Math.round(aveia.calories_per_gram * 30), protein: +(aveia.protein_per_gram * 30).toFixed(1) },
+              ],
+            },
+            { id: uid(), name: "Almoço", order_index: 1, items: [] },
+            { id: uid(), name: "Lanche", order_index: 2, items: [] },
+            { id: uid(), name: "Jantar", order_index: 3, items: [] },
+          ],
+        },
+      };
+    };
+
+    function compCalories(comida, produtos) {
+      return Math.round(comida.items.reduce((sum, it) => {
+        const p = produtos.find(p => p.id === it.produto_id);
+        return sum + (p ? p.calories_per_gram * it.quantity_grams : 0);
+      }, 0));
+    }
+    function compProtein(comida, produtos) {
+      return +comida.items.reduce((sum, it) => {
+        const p = produtos.find(p => p.id === it.produto_id);
+        return sum + (p ? p.protein_per_gram * it.quantity_grams : 0);
+      }, 0).toFixed(1);
+    }
+    function compGrams(comida) {
+      return comida.items.reduce((s, it) => s + it.quantity_grams, 0);
+    }
+
+    // ---------- Simulated AI parser ----------
+    // Matches produtos/comidas in a user message, extracts quantities, returns parsed items.
+    const normalize = (s) => s.toLowerCase()
+      .normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+    const NUM_WORDS = { um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9, dez: 10, meio: 0.5, meia: 0.5 };
+
+    function parseMessage(message, produtos, comidas) {
+      const txt = normalize(" " + message + " ");
+      const found = [];
+      // Try comidas first (longer names first), then produtos
+      const candidates = [
+        ...comidas.map(c => ({ kind: "comida", id: c.id, name: c.name, grams: compGrams(c) })),
+        ...produtos.map(p => ({ kind: "produto", id: p.id, name: p.name, grams: null, cpg: p.calories_per_gram, ppg: p.protein_per_gram })),
+      ].sort((a, b) => b.name.length - a.name.length);
+
+      const taken = new Array(txt.length).fill(false);
+
+      for (const c of candidates) {
+        const n = normalize(c.name);
+        let idx = txt.indexOf(n);
+        while (idx !== -1) {
+          // skip if overlaps with a previously matched range
+          let overlap = false;
+          for (let i = idx; i < idx + n.length; i++) if (taken[i]) { overlap = true; break; }
+          if (overlap) { idx = txt.indexOf(n, idx + 1); continue; }
+
+          // find quantity: look at up to 4 tokens before the match
+          const before = txt.slice(Math.max(0, idx - 40), idx).trim().split(/\s+/).slice(-4);
+          let qty = 1;
+          let gramsExplicit = null;
+          for (let i = before.length - 1; i >= 0; i--) {
+            const w = before[i];
+            const m = w.match(/^(\d+(?:[.,]\d+)?)(g|gr|gramas?)?$/);
+            if (m) {
+              const n = parseFloat(m[1].replace(",", "."));
+              if (m[2]) { gramsExplicit = n; qty = 1; }
+              else { qty = n; }
+              break;
+            }
+            if (NUM_WORDS[w] !== undefined) { qty = NUM_WORDS[w]; break; }
+          }
+
+          // mark taken
+          for (let i = idx; i < idx + n.length; i++) taken[i] = true;
+
+          if (c.kind === "comida") {
+            const comida = comidas.find(x => x.id === c.id);
+            const perUnitCals = compCalories(comida, produtos);
+            const perUnitProt = compProtein(comida, produtos);
+            found.push({
+              type: "comida",
+              matched_id: c.id,
+              name: c.name,
+              quantity: qty,
+              estimated_grams: gramsExplicit ?? c.grams * qty,
+              calories: Math.round(perUnitCals * qty),
+              protein: +(perUnitProt * qty).toFixed(1),
+            });
+          } else {
+            const grams = gramsExplicit ?? defaultGramsForProduto(c.name, qty);
+            found.push({
+              type: "produto",
+              matched_id: c.id,
+              name: c.name,
+              quantity: qty,
+              estimated_grams: grams,
+              calories: Math.round(c.cpg * grams),
+              protein: +(c.ppg * grams).toFixed(1),
+            });
+          }
+          idx = txt.indexOf(n, idx + n.length);
+        }
+      }
+      return found;
+    }
+
+    function defaultGramsForProduto(name, qty) {
+      const n = normalize(name);
+      if (n.includes("ovo")) return 60 * qty;
+      if (n.includes("banana")) return 90 * qty;
+      if (n.includes("pao")) return 50 * qty;
+      if (n.includes("cafe")) return 100 * qty;
+      if (n.includes("leite")) return 200 * qty;
+      return 100 * qty;
+    }
+
+    // ---------- Icons (inline SVG) ----------
+    const Icon = ({ name, className = "w-5 h-5" }) => {
+      const paths = {
+        chat: <><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8-1.05 0-2.06-.16-3-.46L4 21l.96-4.48A7.97 7.97 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></>,
+        calendar: <><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></>,
+        box: <><path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></>,
+        plate: <><path strokeLinecap="round" strokeLinejoin="round" d="M4 12a8 8 0 1116 0 8 8 0 01-16 0zm4 0a4 4 0 108 0 4 4 0 00-8 0z"/></>,
+        send: <><path strokeLinecap="round" strokeLinejoin="round" d="M5 12l14-7-4 14-3-6-7-1z"/></>,
+        camera: <><path strokeLinecap="round" strokeLinejoin="round" d="M3 8a2 2 0 012-2h2l2-2h6l2 2h2a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 17a4 4 0 100-8 4 4 0 000 8z"/></>,
+        plus: <><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14"/></>,
+        trash: <><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-1 12a2 2 0 01-2 2H8a2 2 0 01-2-2L5 7m5 0V4a1 1 0 011-1h2a1 1 0 011 1v3M3 7h18"/></>,
+        edit: <><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.41-9.41a2 2 0 112.83 2.83L11.83 15H9v-2.83l8.59-8.58z"/></>,
+        close: <><path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M6 18L18 6"/></>,
+        check: <><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></>,
+        back: <><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></>,
+        chevronR: <><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></>,
+        chevronL: <><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></>,
+        sparkles: <><path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.29 6.31L22 12l-6.71 2.29L13 21l-2.29-6.71L4 12l6.71-2.29L13 3z"/></>,
+        mic: <><path strokeLinecap="round" strokeLinejoin="round" d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3zM19 10v2a7 7 0 01-14 0v-2M12 19v4m-4 0h8"/></>,
+        flame: <><path strokeLinecap="round" strokeLinejoin="round" d="M12 2s4 4 4 8a4 4 0 11-8 0c0-2 1-3 1-5 0-1-1-2-1-2s4 1 4-1zM6 14a6 6 0 0012 0c0 4-3 8-6 8s-6-4-6-8z"/></>,
+        drumstick: <><path strokeLinecap="round" strokeLinejoin="round" d="M15.5 2a5.5 5.5 0 015.5 5.5c0 3.04-2.46 5.5-5.5 5.5-1 0-1.5.5-2 1l-5 5a2 2 0 11-3-3l5-5c.5-.5 1-1 1-2A5.5 5.5 0 0115.5 2z"/></>,
+      };
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className={className}>
+          {paths[name]}
+        </svg>
+      );
+    };
+
+    // ---------- App shell ----------
+    function App() {
+      const [produtos, setProdutos] = useState(seedProdutos);
+      const [comidas, setComidas] = useState(() => seedComidas(seedProdutos));
+      const [mealDays, setMealDays] = useState(() => seedMealDays(seedComidas(seedProdutos), seedProdutos));
+      const [screen, setScreen] = useState("chat");
+      const [selectedDate, setSelectedDate] = useState(todayISO());
+      const [toast, setToast] = useState(null);
+
+      const showToast = (msg) => {
+        setToast(msg);
+        setTimeout(() => setToast(null), 2200);
+      };
+
+      const ensureDay = useCallback((date) => {
+        setMealDays(prev => {
+          if (prev[date]) return prev;
+          return {
+            ...prev,
+            [date]: {
+              sections: [
+                { id: uid(), name: "Café da manhã", order_index: 0, items: [] },
+                { id: uid(), name: "Almoço", order_index: 1, items: [] },
+                { id: uid(), name: "Lanche", order_index: 2, items: [] },
+                { id: uid(), name: "Jantar", order_index: 3, items: [] },
+              ],
+            },
+          };
+        });
+      }, []);
+
+      const addItemsToDay = useCallback((date, sectionName, parsedItems) => {
+        ensureDay(date);
+        setMealDays(prev => {
+          const day = prev[date] ?? { sections: [] };
+          let section = day.sections.find(s => s.name === sectionName);
+          let sections = day.sections;
+          if (!section) {
+            section = { id: uid(), name: sectionName, order_index: day.sections.length, items: [] };
+            sections = [...day.sections, section];
+          }
+          sections = sections.map(s => s.id === section.id ? {
+            ...s,
+            items: [
+              ...s.items,
+              ...parsedItems.map(it => ({
+                id: uid(),
+                name: it.name,
+                quantity: it.quantity,
+                produto_id: it.type === "produto" ? it.matched_id : null,
+                comida_id: it.type === "comida" ? it.matched_id : null,
+                calories: it.calories,
+                protein: it.protein,
+              })),
+            ],
+          } : s);
+          return { ...prev, [date]: { ...day, sections } };
+        });
+      }, [ensureDay]);
+
+      const sectionForTime = () => {
+        const h = new Date().getHours();
+        if (h < 10) return "Café da manhã";
+        if (h < 15) return "Almoço";
+        if (h < 19) return "Lanche";
+        return "Jantar";
+      };
+
+      const screens = {
+        chat: <ChatScreen produtos={produtos} comidas={comidas} addItemsToDay={addItemsToDay} sectionForTime={sectionForTime} showToast={showToast} onOpenDay={() => { setSelectedDate(todayISO()); setScreen("day"); }} />,
+        calendar: <CalendarScreen mealDays={mealDays} onPickDay={(d) => { setSelectedDate(d); setScreen("day"); }} />,
+        day: <DayDetailScreen date={selectedDate} mealDays={mealDays} setMealDays={setMealDays} produtos={produtos} comidas={comidas} ensureDay={ensureDay} addItemsToDay={addItemsToDay} onBack={() => setScreen("calendar")} showToast={showToast} />,
+        produtos: <ProdutosScreen produtos={produtos} setProdutos={setProdutos} showToast={showToast} />,
+        comidas: <ComidasScreen comidas={comidas} setComidas={setComidas} produtos={produtos} showToast={showToast} />,
+      };
+
+      return (
+        <div className="min-h-screen w-full flex items-center justify-center sm:p-6">
+          <div className="phone-frame relative">
+            <div className="notch"></div>
+            <div className="phone-screen flex flex-col">
+              {/* Status bar */}
+              <div className="h-11 flex items-end justify-between px-7 pb-1 text-[12px] font-semibold text-slate-800 shrink-0">
+                <span>9:41</span>
+                <div className="flex items-center gap-1">
+                  <svg width="16" height="10" viewBox="0 0 16 10" fill="currentColor"><path d="M1 5a1 1 0 011-1h1a1 1 0 011 1v4a1 1 0 01-1 1H2a1 1 0 01-1-1V5zM5 3a1 1 0 011-1h1a1 1 0 011 1v6a1 1 0 01-1 1H6a1 1 0 01-1-1V3zM9 1a1 1 0 011-1h1a1 1 0 011 1v8a1 1 0 01-1 1h-1a1 1 0 01-1-1V1zM13 0h1a1 1 0 011 1v8a1 1 0 01-1 1h-1V0z"/></svg>
+                  <svg width="14" height="10" viewBox="0 0 14 10" fill="currentColor"><path d="M7 9.5C4.5 9.5 2.2 8.5.5 6.7l1.1-1.1C3 7 5 7.9 7 7.9s4-.9 5.4-2.3l1.1 1.1C11.8 8.5 9.5 9.5 7 9.5zM7 6c-1.7 0-3.2.6-4.4 1.8L1.5 6.7C3 5.2 4.9 4.4 7 4.4s4 .8 5.5 2.3l-1.1 1.1C10.2 6.6 8.7 6 7 6z"/></svg>
+                  <svg width="24" height="11" viewBox="0 0 24 11" fill="none"><rect x=".5" y=".5" width="20" height="10" rx="2.5" stroke="currentColor"/><rect x="2" y="2" width="16" height="7" rx="1.5" fill="currentColor"/><rect x="21" y="4" width="1.5" height="3" rx=".5" fill="currentColor"/></svg>
+                </div>
+              </div>
+
+              {/* Screen content */}
+              <div className="flex-1 overflow-hidden">
+                {screens[screen]}
+              </div>
+
+              {/* Bottom nav */}
+              <nav className="shrink-0 border-t border-slate-200 bg-white/90 backdrop-blur px-2 pt-2 pb-6">
+                <div className="grid grid-cols-4 gap-1">
+                  <NavButton active={screen === "chat"} onClick={() => setScreen("chat")} icon="chat" label="Chat" />
+                  <NavButton active={screen === "calendar" || screen === "day"} onClick={() => setScreen("calendar")} icon="calendar" label="Agenda" />
+                  <NavButton active={screen === "produtos"} onClick={() => setScreen("produtos")} icon="box" label="Produtos" />
+                  <NavButton active={screen === "comidas"} onClick={() => setScreen("comidas")} icon="plate" label="Comidas" />
+                </div>
+              </nav>
+
+              {toast && (
+                <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-28 z-40 fade-in">
+                  <div className="rounded-full bg-slate-900 text-white text-sm px-4 py-2 shadow-lg flex items-center gap-2">
+                    <Icon name="check" className="w-4 h-4 text-emerald-400" />
+                    {toast}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function NavButton({ active, onClick, icon, label }) {
+      return (
+        <button onClick={onClick} className={`flex flex-col items-center gap-1 py-2 rounded-xl transition-colors ${active ? "text-emerald-600" : "text-slate-400"}`}>
+          <Icon name={icon} className="w-6 h-6" />
+          <span className="text-[10px] font-medium">{label}</span>
+        </button>
+      );
+    }
+
+    // ---------- Chat ----------
+    function ChatScreen({ produtos, comidas, addItemsToDay, sectionForTime, showToast, onOpenDay }) {
+      const [msgs, setMsgs] = useState([
+        { id: uid(), from: "ai", text: "Olá! Me conte o que você comeu, tire uma foto do prato ou escaneie uma tabela nutricional.", kind: "welcome" },
+      ]);
+      const [input, setInput] = useState("");
+      const [typing, setTyping] = useState(false);
+      const [cameraOpen, setCameraOpen] = useState(null); // 'meal' | 'label' | null
+      const scrollRef = useRef();
+
+      useEffect(() => {
+        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+      }, [msgs, typing]);
+
+      const suggestions = [
+        "2 ovos e aquele sanduíche",
+        "arroz com feijão e frango",
+        "café com leite e banana",
+      ];
+
+      const send = (text) => {
+        const t = text.trim();
+        if (!t) return;
+        setMsgs(m => [...m, { id: uid(), from: "user", text: t }]);
+        setInput("");
+        setTyping(true);
+        setTimeout(() => {
+          const parsed = parseMessage(t, produtos, comidas);
+          setTyping(false);
+          if (parsed.length === 0) {
+            setMsgs(m => [...m, { id: uid(), from: "ai", kind: "nomatch", text: "Hmm, não reconheci nada. Você pode adicionar como novo produto ou refazer a frase." }]);
+            return;
+          }
+          const section = sectionForTime();
+          const totals = {
+            calories: parsed.reduce((s, i) => s + i.calories, 0),
+            protein: +parsed.reduce((s, i) => s + i.protein, 0).toFixed(1),
+          };
+          setMsgs(m => [...m, { id: uid(), from: "ai", kind: "parsed", parsed, totals, section }]);
+        }, 700);
+      };
+
+      const confirm = (msg) => {
+        addItemsToDay(todayISO(), msg.section, msg.parsed);
+        setMsgs(m => m.map(x => x.id === msg.id ? { ...x, confirmed: true } : x));
+        showToast(`Adicionado em ${msg.section}`);
+      };
+
+      const onPhotoMeal = () => {
+        setCameraOpen(null);
+        setTyping(true);
+        setTimeout(() => {
+          setTyping(false);
+          const parsed = [
+            { type: "comida", matched_id: comidas[3].id, name: "Arroz com feijão e frango", quantity: 1, estimated_grams: 350, calories: 560, protein: 42.1 },
+          ];
+          const totals = { calories: 560, protein: 42.1 };
+          setMsgs(m => [...m,
+            { id: uid(), from: "user", kind: "photo", text: "📷 Foto do prato" },
+            { id: uid(), from: "ai", kind: "parsed", parsed, totals, section: sectionForTime() },
+          ]);
+        }, 900);
+      };
+
+      return (
+        <div className="flex flex-col h-full bg-gradient-to-b from-emerald-50 via-white to-white">
+          {/* Header */}
+          <div className="px-5 pt-3 pb-2 flex items-center justify-between shrink-0">
+            <div>
+              <div className="text-[11px] uppercase tracking-wider text-emerald-600 font-semibold">Nutri AI</div>
+              <h1 className="text-[22px] font-bold text-slate-900 leading-tight">Bom dia, Pança</h1>
+            </div>
+            <button onClick={onOpenDay} className="h-10 px-3 rounded-full bg-white border border-slate-200 text-sm font-semibold text-slate-700 shadow-sm flex items-center gap-1.5">
+              <Icon name="flame" className="w-4 h-4 text-orange-500" /> Hoje
+            </button>
+          </div>
+
+          {/* Messages */}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 pb-3 space-y-3 scroll-hide">
+            {msgs.map((m) => m.from === "user" ? (
+              <div key={m.id} className="flex justify-end fade-in">
+                <div className={`max-w-[78%] rounded-2xl rounded-br-md px-4 py-2.5 text-[15px] shadow-sm ${m.kind === "photo" ? "bg-slate-900 text-white" : "bg-emerald-500 text-white"}`}>
+                  {m.text}
+                </div>
+              </div>
+            ) : (
+              <AIMessage key={m.id} msg={m} onConfirm={confirm} />
+            ))}
+            {typing && (
+              <div className="flex fade-in">
+                <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm flex gap-1">
+                  <span className="typing-dot w-1.5 h-1.5 bg-slate-400 rounded-full"></span>
+                  <span className="typing-dot w-1.5 h-1.5 bg-slate-400 rounded-full"></span>
+                  <span className="typing-dot w-1.5 h-1.5 bg-slate-400 rounded-full"></span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Suggestions */}
+          {msgs.length <= 1 && (
+            <div className="px-4 pb-2 flex gap-2 overflow-x-auto scroll-hide shrink-0">
+              {suggestions.map(s => (
+                <button key={s} onClick={() => send(s)} className="shrink-0 text-xs px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600 shadow-sm hover:border-emerald-300">
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Input bar */}
+          <div className="shrink-0 px-3 pt-2 pb-2 bg-white/70 backdrop-blur border-t border-slate-200">
+            <div className="flex items-center gap-2">
+              <button onClick={() => setCameraOpen("meal")} className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center active:scale-95 transition">
+                <Icon name="camera" />
+              </button>
+              <div className="flex-1 flex items-center bg-slate-100 rounded-full pl-4 pr-1 h-10">
+                <input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && send(input)}
+                  placeholder="O que você comeu?"
+                  className="flex-1 bg-transparent outline-none text-[15px] placeholder:text-slate-400"
+                />
+                <button onClick={() => send(input)} disabled={!input.trim()} className="w-8 h-8 rounded-full bg-emerald-500 disabled:bg-slate-300 text-white flex items-center justify-center transition">
+                  <Icon name="send" className="w-4 h-4" />
+                </button>
+              </div>
+              <button className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center">
+                <Icon name="mic" />
+              </button>
+            </div>
+          </div>
+
+          {cameraOpen === "meal" && <CameraModal title="Analisar prato" subtitle="A IA vai detectar os alimentos e estimar calorias." onClose={() => setCameraOpen(null)} onCapture={onPhotoMeal} />}
+        </div>
+      );
+    }
+
+    function AIMessage({ msg, onConfirm }) {
+      if (msg.kind === "parsed") {
+        return (
+          <div className="flex fade-in">
+            <div className="max-w-[90%] w-full bg-white border border-slate-200 rounded-2xl rounded-bl-md shadow-sm overflow-hidden">
+              <div className="px-4 pt-3 pb-2 flex items-center gap-2 text-emerald-600 text-xs font-semibold">
+                <Icon name="sparkles" className="w-4 h-4" />
+                Identifiquei {msg.parsed.length} {msg.parsed.length === 1 ? "item" : "itens"}
+              </div>
+              <div className="px-2 pb-2 space-y-1">
+                {msg.parsed.map((it, i) => (
+                  <div key={i} className="flex items-start gap-3 px-2 py-2 rounded-xl hover:bg-slate-50">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 ${it.type === "comida" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
+                      {it.type === "comida" ? "🍽️" : "🥚"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <div className="font-semibold text-slate-900 text-[15px] truncate">{it.name}</div>
+                        <div className="text-xs text-slate-500 shrink-0">{it.quantity}× · {Math.round(it.estimated_grams)}g</div>
+                      </div>
+                      <div className="flex items-center gap-3 text-[12px] mt-0.5">
+                        <span className="text-orange-600 font-semibold">{it.calories} kcal</span>
+                        <span className="text-violet-600 font-semibold">{it.protein}g prot</span>
+                        {it.matched_id ? (
+                          <span className="text-emerald-600 inline-flex items-center gap-1"><Icon name="check" className="w-3 h-3" />reconhecido</span>
+                        ) : (
+                          <span className="text-slate-400">novo</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                <div className="text-[13px]">
+                  <span className="text-slate-500">Total: </span>
+                  <span className="font-bold text-slate-900">{msg.totals.calories} kcal</span>
+                  <span className="text-slate-400"> · </span>
+                  <span className="font-bold text-slate-900">{msg.totals.protein}g</span>
+                </div>
+                {msg.confirmed ? (
+                  <span className="text-emerald-600 font-semibold text-sm inline-flex items-center gap-1"><Icon name="check" className="w-4 h-4" />Salvo em {msg.section}</span>
+                ) : (
+                  <button onClick={() => onConfirm(msg)} className="bg-emerald-500 text-white text-sm font-semibold px-4 py-2 rounded-full active:scale-95 transition">
+                    Adicionar em {msg.section}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      }
+      return (
+        <div className="flex fade-in">
+          <div className="max-w-[85%] bg-white border border-slate-200 rounded-2xl rounded-bl-md px-4 py-2.5 text-[15px] text-slate-700 shadow-sm">
+            {msg.text}
+          </div>
+        </div>
+      );
+    }
+
+    // ---------- Calendar ----------
+    function CalendarScreen({ mealDays, onPickDay }) {
+      const [month, setMonth] = useState(() => {
+        const d = new Date();
+        return { y: d.getFullYear(), m: d.getMonth() };
+      });
+
+      const monthName = new Date(month.y, month.m, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+      const firstDay = new Date(month.y, month.m, 1);
+      const daysInMonth = new Date(month.y, month.m + 1, 0).getDate();
+      const startWeekday = firstDay.getDay();
+      const cells = [];
+      for (let i = 0; i < startWeekday; i++) cells.push(null);
+      for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+      const today = todayISO();
+
+      const dayStats = (d) => {
+        const iso = `${month.y}-${String(month.m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+        const day = mealDays[iso];
+        if (!day) return null;
+        const cal = day.sections.reduce((s, sec) => s + sec.items.reduce((x, it) => x + it.calories, 0), 0);
+        return { iso, cal };
+      };
+
+      return (
+        <div className="flex flex-col h-full bg-white">
+          <div className="px-5 pt-3 pb-4 shrink-0">
+            <h1 className="text-[22px] font-bold text-slate-900">Agenda</h1>
+            <p className="text-sm text-slate-500">Toque num dia para ver ou registrar refeições.</p>
+          </div>
+          <div className="px-4 pb-2 flex items-center justify-between shrink-0">
+            <button onClick={() => setMonth(m => ({ y: m.m === 0 ? m.y - 1 : m.y, m: m.m === 0 ? 11 : m.m - 1 }))} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center"><Icon name="chevronL" className="w-5 h-5"/></button>
+            <div className="font-semibold capitalize text-slate-800">{monthName}</div>
+            <button onClick={() => setMonth(m => ({ y: m.m === 11 ? m.y + 1 : m.y, m: m.m === 11 ? 0 : m.m + 1 }))} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center"><Icon name="chevronR" className="w-5 h-5"/></button>
+          </div>
+
+          <div className="px-4 grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-slate-400 shrink-0">
+            {["D","S","T","Q","Q","S","S"].map((d,i) => <div key={i} className="py-1">{d}</div>)}
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-4 pb-4 scroll-hide">
+            <div className="grid grid-cols-7 gap-1">
+              {cells.map((d, i) => {
+                if (!d) return <div key={i} />;
+                const iso = `${month.y}-${String(month.m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                const stats = dayStats(d);
+                const isToday = iso === today;
+                return (
+                  <button key={i} onClick={() => onPickDay(iso)} className={`aspect-square rounded-xl flex flex-col items-center justify-center relative transition active:scale-95 ${isToday ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30" : stats ? "bg-emerald-50 text-emerald-700" : "bg-slate-50 text-slate-600"}`}>
+                    <span className="text-[15px] font-bold">{d}</span>
+                    {stats && (
+                      <span className={`text-[9px] mt-0.5 ${isToday ? "text-emerald-50" : "text-emerald-600"}`}>{stats.cal}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-slate-200 p-4">
+              <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">Últimos dias</div>
+              {Object.entries(mealDays).slice(0, 3).map(([iso, day]) => {
+                const cal = day.sections.reduce((s, sec) => s + sec.items.reduce((x, it) => x + it.calories, 0), 0);
+                const count = day.sections.reduce((s, sec) => s + sec.items.length, 0);
+                return (
+                  <button key={iso} onClick={() => onPickDay(iso)} className="w-full flex items-center justify-between py-2 border-b border-slate-100 last:border-b-0">
+                    <div className="text-left">
+                      <div className="font-semibold text-slate-800">{new Date(iso + "T00:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "short" })}</div>
+                      <div className="text-xs text-slate-500">{count} itens registrados</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-orange-500 font-bold">{cal}</span>
+                      <span className="text-xs text-slate-400">kcal</span>
+                      <Icon name="chevronR" className="w-4 h-4 text-slate-300" />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ---------- Day detail ----------
+    function DayDetailScreen({ date, mealDays, setMealDays, produtos, comidas, ensureDay, addItemsToDay, onBack, showToast }) {
+      useEffect(() => { ensureDay(date); }, [date, ensureDay]);
+      const day = mealDays[date];
+      const [addingTo, setAddingTo] = useState(null); // section name
+      const [chatOpen, setChatOpen] = useState(false);
+      const [newSectionOpen, setNewSectionOpen] = useState(false);
+
+      if (!day) return <div className="p-6">Carregando…</div>;
+
+      const totals = day.sections.reduce((acc, s) => {
+        s.items.forEach(it => { acc.calories += it.calories; acc.protein += it.protein; });
+        return acc;
+      }, { calories: 0, protein: 0 });
+      totals.protein = +totals.protein.toFixed(1);
+
+      const removeItem = (sectionId, itemId) => {
+        setMealDays(prev => ({
+          ...prev,
+          [date]: {
+            ...prev[date],
+            sections: prev[date].sections.map(s => s.id === sectionId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s),
+          },
+        }));
+      };
+
+      const removeSection = (sectionId) => {
+        setMealDays(prev => ({
+          ...prev,
+          [date]: { ...prev[date], sections: prev[date].sections.filter(s => s.id !== sectionId) },
+        }));
+      };
+
+      const addSection = (name) => {
+        if (!name.trim()) return;
+        setMealDays(prev => ({
+          ...prev,
+          [date]: { ...prev[date], sections: [...prev[date].sections, { id: uid(), name: name.trim(), order_index: prev[date].sections.length, items: [] }] },
+        }));
+      };
+
+      const dateLabel = new Date(date + "T00:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
+
+      return (
+        <div className="flex flex-col h-full bg-slate-50">
+          <div className="shrink-0 bg-white border-b border-slate-200 px-3 pt-3 pb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <button onClick={onBack} className="w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center"><Icon name="back"/></button>
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-emerald-600 font-semibold">Diário</div>
+                <h1 className="text-[18px] font-bold text-slate-900 capitalize leading-tight">{dateLabel}</h1>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <StatCard label="Calorias" value={totals.calories} unit="kcal" color="orange" icon="flame" />
+              <StatCard label="Proteína" value={totals.protein} unit="g" color="violet" icon="drumstick" />
+              <StatCard label="Itens" value={day.sections.reduce((s,sec)=>s+sec.items.length,0)} unit="" color="emerald" icon="plate" />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 scroll-hide">
+            {day.sections.map(section => (
+              <div key={section.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                <div className="px-4 py-3 flex items-center justify-between">
+                  <div>
+                    <div className="font-bold text-slate-800">{section.name}</div>
+                    <div className="text-xs text-slate-500">
+                      {section.items.reduce((s,i) => s + i.calories, 0)} kcal · {section.items.length} itens
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => setAddingTo(section.name)} className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center active:scale-95">
+                      <Icon name="plus" className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => removeSection(section.id)} className="w-8 h-8 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-500 flex items-center justify-center">
+                      <Icon name="trash" className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                {section.items.length > 0 && (
+                  <div className="border-t border-slate-100 divide-y divide-slate-100">
+                    {section.items.map(it => (
+                      <div key={it.id} className="px-4 py-2.5 flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${it.comida_id ? "bg-amber-100" : "bg-emerald-100"}`}>
+                          {it.comida_id ? "🍽️" : "🥚"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-slate-800 text-[14px] truncate">{it.name}</div>
+                          <div className="text-[11px] text-slate-500">{it.quantity}{it.comida_id ? "×" : "g"} · {it.calories} kcal · {it.protein}g prot</div>
+                        </div>
+                        <button onClick={() => removeItem(section.id, it.id)} className="text-slate-300 hover:text-red-500">
+                          <Icon name="close" className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+            <button onClick={() => setNewSectionOpen(true)} className="w-full bg-white border border-dashed border-slate-300 rounded-2xl py-4 text-slate-500 font-semibold flex items-center justify-center gap-2">
+              <Icon name="plus" className="w-4 h-4" /> Nova seção
+            </button>
+          </div>
+
+          {/* Floating chat button */}
+          <button onClick={() => setChatOpen(true)} className="absolute right-4 bottom-24 w-14 h-14 rounded-full bg-emerald-500 text-white shadow-xl shadow-emerald-500/40 flex items-center justify-center active:scale-95">
+            <Icon name="chat" className="w-6 h-6" />
+          </button>
+
+          {addingTo && <AddItemModal sectionName={addingTo} produtos={produtos} comidas={comidas} onClose={() => setAddingTo(null)} onAdd={(items) => { addItemsToDay(date, addingTo, items); setAddingTo(null); showToast(`Adicionado em ${addingTo}`); }} />}
+          {chatOpen && <DayChatModal date={date} produtos={produtos} comidas={comidas} onClose={() => setChatOpen(false)} onConfirm={(items, section) => { addItemsToDay(date, section, items); showToast(`Adicionado em ${section}`); setChatOpen(false); }} />}
+          {newSectionOpen && <PromptModal title="Nova seção" placeholder="Ex: Ceia" onClose={() => setNewSectionOpen(false)} onSubmit={(name) => { addSection(name); setNewSectionOpen(false); }} />}
+        </div>
+      );
+    }
+
+    function StatCard({ label, value, unit, color, icon }) {
+      const palette = {
+        orange: "bg-orange-50 text-orange-600",
+        violet: "bg-violet-50 text-violet-600",
+        emerald: "bg-emerald-50 text-emerald-600",
+      }[color];
+      return (
+        <div className="rounded-xl bg-white border border-slate-200 p-3">
+          <div className={`inline-flex items-center justify-center w-7 h-7 rounded-lg ${palette} mb-1`}>
+            <Icon name={icon} className="w-4 h-4" />
+          </div>
+          <div className="text-[11px] text-slate-500 font-medium">{label}</div>
+          <div className="font-bold text-slate-900"><span className="text-lg">{value}</span> <span className="text-xs text-slate-400">{unit}</span></div>
+        </div>
+      );
+    }
+
+    function AddItemModal({ sectionName, produtos, comidas, onClose, onAdd }) {
+      const [tab, setTab] = useState("produtos");
+      const [query, setQuery] = useState("");
+      const [picked, setPicked] = useState(null); // {kind, id, name, ...}
+      const [qty, setQty] = useState(100);
+
+      const list = tab === "produtos"
+        ? produtos.filter(p => !query || normalize(p.name).includes(normalize(query)))
+        : comidas.filter(c => !query || normalize(c.name).includes(normalize(query)));
+
+      const confirm = () => {
+        if (!picked) return;
+        if (picked.kind === "produto") {
+          const p = produtos.find(x => x.id === picked.id);
+          onAdd([{
+            type: "produto", matched_id: p.id, name: p.name, quantity: qty, estimated_grams: qty,
+            calories: Math.round(p.calories_per_gram * qty), protein: +(p.protein_per_gram * qty).toFixed(1),
+          }]);
+        } else {
+          const c = comidas.find(x => x.id === picked.id);
+          onAdd([{
+            type: "comida", matched_id: c.id, name: c.name, quantity: qty, estimated_grams: compGrams(c) * qty,
+            calories: Math.round(compCalories(c, produtos) * qty), protein: +(compProtein(c, produtos) * qty).toFixed(1),
+          }]);
+        }
+      };
+
+      return (
+        <Sheet onClose={onClose} title={`Adicionar em ${sectionName}`}>
+          <div className="flex gap-1 bg-slate-100 rounded-full p-1 mb-3">
+            {["produtos", "comidas"].map(t => (
+              <button key={t} onClick={() => { setTab(t); setPicked(null); }} className={`flex-1 py-2 rounded-full text-sm font-semibold capitalize ${tab === t ? "bg-white shadow text-slate-900" : "text-slate-500"}`}>{t}</button>
+            ))}
+          </div>
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar..." className="w-full mb-3 bg-slate-100 rounded-xl px-4 py-2.5 text-[15px] outline-none" />
+          <div className="max-h-64 overflow-y-auto scroll-hide -mx-1 px-1 space-y-1 mb-3">
+            {list.map(x => (
+              <button key={x.id} onClick={() => { setPicked({ kind: tab === "produtos" ? "produto" : "comida", id: x.id, name: x.name }); setQty(tab === "produtos" ? 100 : 1); }} className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center justify-between transition ${picked?.id === x.id ? "bg-emerald-50 border border-emerald-300" : "hover:bg-slate-50 border border-transparent"}`}>
+                <div>
+                  <div className="font-semibold text-slate-800 text-sm">{x.name}</div>
+                  <div className="text-[11px] text-slate-500">
+                    {tab === "produtos" ? `${Math.round(x.calories_per_gram * 100)} kcal/100g` : `${compCalories(x, produtos)} kcal total`}
+                  </div>
+                </div>
+                {picked?.id === x.id && <Icon name="check" className="w-5 h-5 text-emerald-600"/>}
+              </button>
+            ))}
+          </div>
+          {picked && (
+            <div className="bg-slate-50 rounded-xl p-3 mb-3">
+              <div className="text-xs text-slate-500 mb-1">Quantidade {picked.kind === "produto" ? "(gramas)" : "(porções)"}</div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setQty(q => Math.max(1, q - (picked.kind === "produto" ? 10 : 1)))} className="w-9 h-9 rounded-full bg-white border border-slate-200 font-bold">−</button>
+                <input type="number" value={qty} onChange={e => setQty(parseFloat(e.target.value) || 0)} className="flex-1 text-center bg-white rounded-lg py-2 border border-slate-200 font-bold text-lg" />
+                <button onClick={() => setQty(q => q + (picked.kind === "produto" ? 10 : 1))} className="w-9 h-9 rounded-full bg-white border border-slate-200 font-bold">+</button>
+              </div>
+            </div>
+          )}
+          <button disabled={!picked} onClick={confirm} className="w-full bg-emerald-500 disabled:bg-slate-200 text-white font-semibold py-3 rounded-full">Adicionar</button>
+        </Sheet>
+      );
+    }
+
+    function DayChatModal({ date, produtos, comidas, onClose, onConfirm }) {
+      const [input, setInput] = useState("");
+      const [parsed, setParsed] = useState(null);
+      const [typing, setTyping] = useState(false);
+      const [section, setSection] = useState("Café da manhã");
+
+      const go = () => {
+        if (!input.trim()) return;
+        setTyping(true);
+        setTimeout(() => {
+          setParsed(parseMessage(input, produtos, comidas));
+          setTyping(false);
+        }, 500);
+      };
+
+      const totals = parsed ? {
+        calories: parsed.reduce((s, i) => s + i.calories, 0),
+        protein: +parsed.reduce((s, i) => s + i.protein, 0).toFixed(1),
+      } : null;
+
+      return (
+        <Sheet onClose={onClose} title={`Registrar em ${new Date(date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`}>
+          <div className="flex gap-1 overflow-x-auto scroll-hide mb-3 -mx-1 px-1">
+            {["Café da manhã","Almoço","Lanche","Jantar"].map(s => (
+              <button key={s} onClick={() => setSection(s)} className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold ${section === s ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-600"}`}>{s}</button>
+            ))}
+          </div>
+          <textarea value={input} onChange={e => setInput(e.target.value)} placeholder="ex: 2 ovos e aquele sanduíche" rows={3} className="w-full bg-slate-100 rounded-xl px-4 py-3 outline-none resize-none" />
+          <button onClick={go} className="w-full mt-2 bg-slate-900 text-white font-semibold py-2.5 rounded-full flex items-center justify-center gap-2">
+            <Icon name="sparkles" className="w-4 h-4" /> Analisar com IA
+          </button>
+          {typing && <div className="text-center py-4 text-slate-400 text-sm">Analisando…</div>}
+          {parsed && (
+            <div className="mt-3 space-y-1">
+              {parsed.length === 0 ? (
+                <div className="text-sm text-slate-500 text-center py-4">Nada reconhecido. Tente reformular.</div>
+              ) : (
+                <>
+                  {parsed.map((it, i) => (
+                    <div key={i} className="flex items-center gap-3 px-2 py-2 rounded-lg bg-slate-50">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-slate-800 text-sm truncate">{it.name}</div>
+                        <div className="text-[11px] text-slate-500">{it.quantity}× · {it.calories} kcal · {it.protein}g</div>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between pt-2 text-sm">
+                    <span className="text-slate-500">Total</span>
+                    <span className="font-bold">{totals.calories} kcal · {totals.protein}g</span>
+                  </div>
+                  <button onClick={() => onConfirm(parsed, section)} className="w-full mt-2 bg-emerald-500 text-white font-semibold py-3 rounded-full">Adicionar</button>
+                </>
+              )}
+            </div>
+          )}
+        </Sheet>
+      );
+    }
+
+    function PromptModal({ title, placeholder, onClose, onSubmit }) {
+      const [v, setV] = useState("");
+      return (
+        <Sheet onClose={onClose} title={title}>
+          <input autoFocus value={v} onChange={e => setV(e.target.value)} placeholder={placeholder} className="w-full bg-slate-100 rounded-xl px-4 py-3 outline-none mb-3" />
+          <button onClick={() => onSubmit(v)} disabled={!v.trim()} className="w-full bg-emerald-500 disabled:bg-slate-200 text-white font-semibold py-3 rounded-full">Criar</button>
+        </Sheet>
+      );
+    }
+
+    function Sheet({ title, children, onClose }) {
+      return (
+        <div className="absolute inset-0 z-30 flex items-end justify-center">
+          <div onClick={onClose} className="absolute inset-0 bg-black/40 fade-in" />
+          <div className="relative w-full bg-white rounded-t-3xl p-5 pb-6 max-h-[90%] overflow-y-auto scroll-hide pop">
+            <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mb-3" />
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold text-slate-900">{title}</h2>
+              <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center"><Icon name="close" className="w-4 h-4" /></button>
+            </div>
+            {children}
+          </div>
+        </div>
+      );
+    }
+
+    // ---------- Produtos CRUD ----------
+    function ProdutosScreen({ produtos, setProdutos, showToast }) {
+      const [query, setQuery] = useState("");
+      const [editing, setEditing] = useState(null); // null | 'new' | produto
+      const [scanOpen, setScanOpen] = useState(false);
+      const [scanResult, setScanResult] = useState(null);
+
+      const list = produtos.filter(p => !query || normalize(p.name).includes(normalize(query)));
+
+      const save = (p) => {
+        if (p.id) {
+          setProdutos(prev => prev.map(x => x.id === p.id ? p : x));
+          showToast("Produto atualizado");
+        } else {
+          setProdutos(prev => [...prev, { ...p, id: uid(), created_at: new Date().toISOString() }]);
+          showToast("Produto criado");
+        }
+        setEditing(null);
+      };
+
+      const remove = (id) => {
+        setProdutos(prev => prev.filter(p => p.id !== id));
+        showToast("Produto removido");
+      };
+
+      const doScan = () => {
+        setScanOpen(false);
+        setTimeout(() => {
+          setScanResult({
+            name: "Iogurte desnatado",
+            calories_per_100g: 42,
+            protein_per_100g: 4.1,
+            carbs_per_100g: 6.3,
+            fat_per_100g: 0.1,
+          });
+        }, 1100);
+      };
+
+      return (
+        <div className="flex flex-col h-full bg-slate-50">
+          <div className="shrink-0 px-5 pt-3 pb-3 bg-white border-b border-slate-200">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h1 className="text-[22px] font-bold text-slate-900">Produtos</h1>
+                <p className="text-sm text-slate-500">{produtos.length} itens registrados</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setScanOpen(true)} className="h-10 px-3 rounded-full bg-slate-900 text-white text-sm font-semibold flex items-center gap-1.5 shadow">
+                  <Icon name="camera" className="w-4 h-4" /> Scan
+                </button>
+                <button onClick={() => setEditing("new")} className="h-10 w-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow">
+                  <Icon name="plus" />
+                </button>
+              </div>
+            </div>
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar produto" className="w-full bg-slate-100 rounded-xl px-4 py-2.5 outline-none text-[15px]" />
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 space-y-2 scroll-hide">
+            {list.map(p => (
+              <div key={p.id} className="bg-white rounded-2xl border border-slate-200 p-3 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-lg shrink-0">🥚</div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-slate-800 truncate">{p.name}</div>
+                  <div className="text-[11px] text-slate-500">
+                    {p.brand ? `${p.brand} · ` : ""}
+                    {Math.round(p.calories_per_gram * 100)} kcal · {(p.protein_per_gram * 100).toFixed(1)}g prot / 100g
+                  </div>
+                </div>
+                <button onClick={() => setEditing(p)} className="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 flex items-center justify-center"><Icon name="edit" className="w-4 h-4"/></button>
+                <button onClick={() => remove(p.id)} className="w-8 h-8 rounded-full hover:bg-red-50 text-slate-300 hover:text-red-500 flex items-center justify-center"><Icon name="trash" className="w-4 h-4"/></button>
+              </div>
+            ))}
+            {list.length === 0 && <div className="text-center text-slate-400 py-8 text-sm">Nenhum produto encontrado.</div>}
+          </div>
+
+          {editing && <ProdutoForm produto={editing === "new" ? null : editing} onClose={() => setEditing(null)} onSave={save} />}
+          {scanOpen && <CameraModal title="Escanear tabela nutricional" subtitle="Foque a tabela. A IA vai extrair os macros por 100g." onClose={() => setScanOpen(false)} onCapture={doScan} scanMode />}
+          {scanResult && <ProdutoForm produto={null} prefill={scanResult} onClose={() => setScanResult(null)} onSave={(p) => { save(p); setScanResult(null); }} />}
+        </div>
+      );
+    }
+
+    function ProdutoForm({ produto, prefill, onClose, onSave }) {
+      const init = produto ?? {
+        name: prefill?.name ?? "",
+        brand: "",
+        calories_per_gram: prefill ? prefill.calories_per_100g / 100 : 0,
+        protein_per_gram: prefill ? prefill.protein_per_100g / 100 : 0,
+        carbs_per_gram: prefill ? (prefill.carbs_per_100g ?? 0) / 100 : 0,
+        fat_per_gram: prefill ? (prefill.fat_per_100g ?? 0) / 100 : 0,
+      };
+      const [form, setForm] = useState(init);
+
+      const setN = (k, v) => setForm(f => ({ ...f, [k]: v }));
+      const per100 = (k) => +(form[k] * 100).toFixed(1);
+      const setPer100 = (k, v) => setN(k, (parseFloat(v) || 0) / 100);
+
+      return (
+        <Sheet onClose={onClose} title={produto ? "Editar produto" : prefill ? "Confirmar dados escaneados" : "Novo produto"}>
+          {prefill && (
+            <div className="mb-3 flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+              <Icon name="sparkles" className="w-4 h-4"/> Extraído da foto da tabela nutricional. Confirme e salve.
+            </div>
+          )}
+          <div className="space-y-3">
+            <Field label="Nome"><input value={form.name} onChange={e => setN("name", e.target.value)} className="w-full bg-slate-100 rounded-lg px-3 py-2 outline-none" placeholder="Ex: Iogurte natural"/></Field>
+            <Field label="Marca (opcional)"><input value={form.brand ?? ""} onChange={e => setN("brand", e.target.value)} className="w-full bg-slate-100 rounded-lg px-3 py-2 outline-none" placeholder="Ex: Danone"/></Field>
+            <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold pt-1">Por 100 g</div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Calorias (kcal)"><input type="number" value={per100("calories_per_gram")} onChange={e => setPer100("calories_per_gram", e.target.value)} className="w-full bg-slate-100 rounded-lg px-3 py-2 outline-none"/></Field>
+              <Field label="Proteína (g)"><input type="number" value={per100("protein_per_gram")} onChange={e => setPer100("protein_per_gram", e.target.value)} className="w-full bg-slate-100 rounded-lg px-3 py-2 outline-none"/></Field>
+              <Field label="Carboidratos (g)"><input type="number" value={per100("carbs_per_gram")} onChange={e => setPer100("carbs_per_gram", e.target.value)} className="w-full bg-slate-100 rounded-lg px-3 py-2 outline-none"/></Field>
+              <Field label="Gordura (g)"><input type="number" value={per100("fat_per_gram")} onChange={e => setPer100("fat_per_gram", e.target.value)} className="w-full bg-slate-100 rounded-lg px-3 py-2 outline-none"/></Field>
+            </div>
+          </div>
+          <button onClick={() => onSave(form)} disabled={!form.name.trim()} className="w-full mt-5 bg-emerald-500 disabled:bg-slate-200 text-white font-semibold py-3 rounded-full">Salvar</button>
+        </Sheet>
+      );
+    }
+
+    function Field({ label, children }) {
+      return (
+        <label className="block">
+          <div className="text-xs text-slate-500 font-medium mb-1">{label}</div>
+          {children}
+        </label>
+      );
+    }
+
+    // ---------- Comidas CRUD ----------
+    function ComidasScreen({ comidas, setComidas, produtos, showToast }) {
+      const [query, setQuery] = useState("");
+      const [editing, setEditing] = useState(null);
+
+      const list = comidas.filter(c => !query || normalize(c.name).includes(normalize(query)));
+
+      const save = (c) => {
+        if (c.id) {
+          setComidas(prev => prev.map(x => x.id === c.id ? c : x));
+          showToast("Comida atualizada");
+        } else {
+          setComidas(prev => [...prev, { ...c, id: uid() }]);
+          showToast("Comida criada");
+        }
+        setEditing(null);
+      };
+      const remove = (id) => { setComidas(prev => prev.filter(c => c.id !== id)); showToast("Comida removida"); };
+
+      return (
+        <div className="flex flex-col h-full bg-slate-50">
+          <div className="shrink-0 px-5 pt-3 pb-3 bg-white border-b border-slate-200">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h1 className="text-[22px] font-bold text-slate-900">Comidas</h1>
+                <p className="text-sm text-slate-500">Pratos compostos por produtos</p>
+              </div>
+              <button onClick={() => setEditing("new")} className="h-10 w-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow">
+                <Icon name="plus"/>
+              </button>
+            </div>
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar comida" className="w-full bg-slate-100 rounded-xl px-4 py-2.5 outline-none text-[15px]" />
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 space-y-2 scroll-hide">
+            {list.map(c => {
+              const cal = compCalories(c, produtos);
+              const prot = compProtein(c, produtos);
+              return (
+                <div key={c.id} className="bg-white rounded-2xl border border-slate-200 p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-lg shrink-0">🍽️</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-slate-800 truncate">{c.name}</div>
+                      <div className="text-[11px] text-slate-500">{c.items.length} produtos · {cal} kcal · {prot}g prot</div>
+                    </div>
+                    <button onClick={() => setEditing(c)} className="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 flex items-center justify-center"><Icon name="edit" className="w-4 h-4"/></button>
+                    <button onClick={() => remove(c.id)} className="w-8 h-8 rounded-full hover:bg-red-50 text-slate-300 hover:text-red-500 flex items-center justify-center"><Icon name="trash" className="w-4 h-4"/></button>
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-2 pl-13">
+                    {c.items.map((it, i) => {
+                      const p = produtos.find(x => x.id === it.produto_id);
+                      if (!p) return null;
+                      return <span key={i} className="text-[11px] bg-slate-100 rounded-full px-2 py-0.5 text-slate-600">{p.name} · {it.quantity_grams}g</span>;
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {editing && <ComidaForm comida={editing === "new" ? null : editing} produtos={produtos} onClose={() => setEditing(null)} onSave={save} />}
+        </div>
+      );
+    }
+
+    function ComidaForm({ comida, produtos, onClose, onSave }) {
+      const [name, setName] = useState(comida?.name ?? "");
+      const [items, setItems] = useState(comida?.items ?? []);
+      const [pickerOpen, setPickerOpen] = useState(false);
+
+      const addProduto = (produtoId, grams) => {
+        setItems(prev => [...prev, { produto_id: produtoId, quantity_grams: grams }]);
+        setPickerOpen(false);
+      };
+
+      const totalCal = Math.round(items.reduce((s, it) => {
+        const p = produtos.find(x => x.id === it.produto_id);
+        return s + (p ? p.calories_per_gram * it.quantity_grams : 0);
+      }, 0));
+      const totalProt = +items.reduce((s, it) => {
+        const p = produtos.find(x => x.id === it.produto_id);
+        return s + (p ? p.protein_per_gram * it.quantity_grams : 0);
+      }, 0).toFixed(1);
+
+      return (
+        <Sheet onClose={onClose} title={comida ? "Editar comida" : "Nova comida"}>
+          <Field label="Nome"><input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Sanduíche de frango" className="w-full bg-slate-100 rounded-lg px-3 py-2 outline-none"/></Field>
+          <div className="mt-4 flex items-center justify-between">
+            <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Composição</div>
+            <button onClick={() => setPickerOpen(true)} className="text-xs font-semibold text-emerald-600 inline-flex items-center gap-1"><Icon name="plus" className="w-3 h-3"/> produto</button>
+          </div>
+          <div className="mt-2 space-y-1">
+            {items.length === 0 && <div className="text-sm text-slate-400 py-4 text-center border border-dashed border-slate-200 rounded-xl">Nenhum produto. Toque em + produto.</div>}
+            {items.map((it, i) => {
+              const p = produtos.find(x => x.id === it.produto_id);
+              if (!p) return null;
+              return (
+                <div key={i} className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm text-slate-800 truncate">{p.name}</div>
+                    <div className="text-[11px] text-slate-500">{Math.round(p.calories_per_gram * it.quantity_grams)} kcal</div>
+                  </div>
+                  <input type="number" value={it.quantity_grams} onChange={e => { const v = parseFloat(e.target.value) || 0; setItems(prev => prev.map((x, xi) => xi === i ? { ...x, quantity_grams: v } : x)); }} className="w-20 bg-white rounded-lg px-2 py-1 border border-slate-200 text-sm text-right" />
+                  <span className="text-xs text-slate-400">g</span>
+                  <button onClick={() => setItems(prev => prev.filter((_, xi) => xi !== i))} className="text-slate-300 hover:text-red-500"><Icon name="close" className="w-4 h-4"/></button>
+                </div>
+              );
+            })}
+          </div>
+          {items.length > 0 && (
+            <div className="mt-3 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 flex items-center justify-between text-sm">
+              <span className="text-emerald-700 font-semibold">Total</span>
+              <span className="font-bold text-emerald-900">{totalCal} kcal · {totalProt}g prot</span>
+            </div>
+          )}
+          <button onClick={() => onSave({ ...(comida ?? {}), name, items })} disabled={!name.trim() || items.length === 0} className="w-full mt-5 bg-emerald-500 disabled:bg-slate-200 text-white font-semibold py-3 rounded-full">Salvar</button>
+
+          {pickerOpen && <ProdutoPicker produtos={produtos} onClose={() => setPickerOpen(false)} onPick={addProduto}/>}
+        </Sheet>
+      );
+    }
+
+    function ProdutoPicker({ produtos, onClose, onPick }) {
+      const [query, setQuery] = useState("");
+      const [picked, setPicked] = useState(null);
+      const [grams, setGrams] = useState(100);
+      const list = produtos.filter(p => !query || normalize(p.name).includes(normalize(query)));
+
+      return (
+        <Sheet onClose={onClose} title="Escolher produto">
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar..." className="w-full bg-slate-100 rounded-xl px-4 py-2.5 outline-none text-[15px] mb-3" />
+          <div className="max-h-56 overflow-y-auto scroll-hide space-y-1 mb-3">
+            {list.map(p => (
+              <button key={p.id} onClick={() => setPicked(p)} className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between ${picked?.id === p.id ? "bg-emerald-50 border border-emerald-300" : "hover:bg-slate-50 border border-transparent"}`}>
+                <div className="font-semibold text-slate-800 text-sm">{p.name}</div>
+                {picked?.id === p.id && <Icon name="check" className="w-4 h-4 text-emerald-600"/>}
+              </button>
+            ))}
+          </div>
+          {picked && (
+            <div className="flex items-center gap-2 mb-3">
+              <input type="number" value={grams} onChange={e => setGrams(parseFloat(e.target.value) || 0)} className="flex-1 bg-slate-100 rounded-lg px-3 py-2 outline-none" />
+              <span className="text-sm text-slate-500">gramas</span>
+            </div>
+          )}
+          <button disabled={!picked || !grams} onClick={() => onPick(picked.id, grams)} className="w-full bg-emerald-500 disabled:bg-slate-200 text-white font-semibold py-3 rounded-full">Adicionar</button>
+        </Sheet>
+      );
+    }
+
+    // ---------- Camera modal ----------
+    function CameraModal({ title, subtitle, onClose, onCapture, scanMode }) {
+      const [capturing, setCapturing] = useState(false);
+      const handle = () => {
+        setCapturing(true);
+        setTimeout(onCapture, 900);
+      };
+      return (
+        <div className="absolute inset-0 z-40 bg-black flex flex-col fade-in">
+          <div className="shrink-0 px-4 pt-6 pb-3 flex items-center justify-between text-white">
+            <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center"><Icon name="close" className="w-5 h-5"/></button>
+            <div className="text-center">
+              <div className="font-semibold text-sm">{title}</div>
+              <div className="text-[11px] text-white/60">{subtitle}</div>
+            </div>
+            <div className="w-9"/>
+          </div>
+          <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 opacity-80"/>
+            {/* Fake viewfinder */}
+            <div className="relative z-10 w-64 h-80 rounded-2xl border-2 border-white/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]">
+              {scanMode && (
+                <div className="absolute inset-4 border border-dashed border-white/70 rounded-lg flex items-center justify-center text-white/60 text-xs text-center px-2">
+                  INFORMAÇÃO NUTRICIONAL<br/>Porção: 100g<br/>Valor energético: ? kcal
+                </div>
+              )}
+              {capturing && <div className="absolute inset-0 bg-white/40 animate-pulse rounded-2xl"/>}
+            </div>
+            <div className="absolute bottom-6 left-0 right-0 text-center text-white/60 text-xs">
+              {capturing ? "Analisando com a IA…" : (scanMode ? "Alinhe a tabela dentro da moldura" : "Aponte para o prato")}
+            </div>
+          </div>
+          <div className="shrink-0 pb-8 pt-4 flex items-center justify-center">
+            <button onClick={handle} disabled={capturing} className="w-[72px] h-[72px] rounded-full bg-white ring-4 ring-white/40 active:scale-95 transition disabled:opacity-70"/>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,50 @@
+name: Deploy backend to AWS Lambda
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '25'
+          distribution: 'mandrel'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Build native image
+        run: mvn package -Pnative -DskipTests
+
+      - name: Deploy
+        run: |
+          sam deploy -t sam.native.yaml --no-confirm-changeset --parameter-overrides \
+            "AnthropicApiKey=${{ secrets.ANTHROPIC_API_KEY }}" \
+            "SupabaseUrl=${{ secrets.SUPABASE_DB_URL }}" \
+            "SupabaseUser=${{ secrets.SUPABASE_DB_USER }}" \
+            "SupabasePassword=${{ secrets.SUPABASE_DB_PASSWORD }}"
