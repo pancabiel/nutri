@@ -13,6 +13,9 @@ Parameters:
   SupabasePassword:
     Type: String
     NoEcho: true
+  AppPassword:
+    Type: String
+    NoEcho: true
 
 Globals:
   Api:
@@ -37,6 +40,7 @@ Resources:
           SUPABASE_DB_URL: !Ref SupabaseUrl
           SUPABASE_DB_USER: !Ref SupabaseUser
           SUPABASE_DB_PASSWORD: !Ref SupabasePassword
+          APP_PASSWORD: !Ref AppPassword
       Events:
         HttpApiEvent:
           Type: HttpApi

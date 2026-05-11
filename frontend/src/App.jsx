@@ -6,7 +6,8 @@ import CalendarScreen from "./screens/CalendarScreen.jsx";
 import DayScreen from "./screens/DayScreen.jsx";
 import ProdutosScreen from "./screens/ProdutosScreen.jsx";
 import ComidasScreen from "./screens/ComidasScreen.jsx";
-import { todayISO } from "./lib/api.js";
+import LoginScreen from "./screens/LoginScreen.jsx";
+import { todayISO, auth } from "./lib/api.js";
 
 function Shell() {
   const { toast, refreshProdutos, refreshComidas } = useStore();
@@ -58,5 +59,7 @@ function NavBtn({ active, onClick, icon, label }) {
 }
 
 export default function App() {
+  const [authed, setAuthed] = useState(() => !!auth.get());
+  if (!authed) return <LoginScreen onAuthed={() => setAuthed(true)} />;
   return <StoreProvider><Shell /></StoreProvider>;
 }

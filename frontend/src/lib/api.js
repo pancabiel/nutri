@@ -1,13 +1,36 @@
 const BASE = import.meta.env.VITE_API_BASE || "/api";
+const AUTH_KEY = "nutri_auth";
+
+export const auth = {
+  get:   ()  => localStorage.getItem(AUTH_KEY) || "",
+  set:   (p) => localStorage.setItem(AUTH_KEY, p),
+  clear: ()  => localStorage.removeItem(AUTH_KEY),
+};
 
 async function http(path, opts = {}) {
   const res = await fetch(BASE + path, {
-    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
+    headers: {
+      "Content-Type": "application/json",
+      "X-Auth": auth.get(),
+      ...(opts.headers || {}),
+    },
     ...opts,
   });
+  if (res.status === 401) {
+    auth.clear();
+    window.location.reload();
+    throw new Error("401 Unauthorized");
+  }
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   if (res.status === 204) return null;
   return res.json();
+}
+
+export async function verifyPassword(password) {
+  const res = await fetch(BASE + "/produtos?q=__ping__", {
+    headers: { "X-Auth": password },
+  });
+  return res.status !== 401;
 }
 
 export const api = {

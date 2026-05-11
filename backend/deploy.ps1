@@ -17,7 +17,7 @@ Get-Content .env | ForEach-Object {
     }
 }
 
-foreach ($key in 'ANTHROPIC_API_KEY','SUPABASE_DB_URL','SUPABASE_DB_USER','SUPABASE_DB_PASSWORD') {
+foreach ($key in 'ANTHROPIC_API_KEY','SUPABASE_DB_URL','SUPABASE_DB_USER','SUPABASE_DB_PASSWORD','APP_PASSWORD') {
     if (-not $envVars.ContainsKey($key)) {
         Write-Error "Missing $key in .env"
         exit 1
@@ -33,7 +33,8 @@ $paramOverrides = @(
     "AnthropicApiKey=$($envVars['ANTHROPIC_API_KEY'])",
     "SupabaseUrl=$($envVars['SUPABASE_DB_URL'])",
     "SupabaseUser=$($envVars['SUPABASE_DB_USER'])",
-    "SupabasePassword=$($envVars['SUPABASE_DB_PASSWORD'])"
+    "SupabasePassword=$($envVars['SUPABASE_DB_PASSWORD'])",
+    "AppPassword=$($envVars['APP_PASSWORD'])"
 ) -join ' '
 
 sam deploy -t sam.native.yaml --profile nutri --no-confirm-changeset --parameter-overrides $paramOverrides

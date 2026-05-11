@@ -47,4 +47,5 @@ jobs:
             "AnthropicApiKey=${{ secrets.ANTHROPIC_API_KEY }}" \
             "SupabaseUrl=${{ secrets.SUPABASE_DB_URL }}" \
             "SupabaseUser=${{ secrets.SUPABASE_DB_USER }}" \
-            "SupabasePassword=${{ secrets.SUPABASE_DB_PASSWORD }}"
+            "SupabasePassword=${{ secrets.SUPABASE_DB_PASSWORD }}" \
+            "AppPassword=${{ secrets.APP_PASSWORD }}"
