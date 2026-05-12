@@ -12,3 +12,15 @@ image_repositories = []
 
 [default.global.parameters]
 region = "us-east-1"
+
+[ci.deploy.parameters]
+stack_name = "nutri-api"
+resolve_s3 = true
+s3_prefix = "nutri-api"
+region = "us-east-1"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
+image_repositories = []
+
+[ci.global.parameters]
+region = "us-east-1"

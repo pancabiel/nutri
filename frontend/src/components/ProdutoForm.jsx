@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Icon from "./Icon.jsx";
 import Sheet from "./Sheet.jsx";
+import NumberInput from "./NumberInput.jsx";
 
 export default function ProdutoForm({ produto, prefill, title, hint, onClose, onSave }) {
   const init = produto ?? {
@@ -16,7 +17,7 @@ export default function ProdutoForm({ produto, prefill, title, hint, onClose, on
   const [form, setForm] = useState(init);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const per100 = (k) => +(form[k] * 100).toFixed(1);
-  const setPer100 = (k, v) => set(k, (parseFloat(v) || 0) / 100);
+  const setPer100 = (k, v) => set(k, (v ?? 0) / 100);
 
   const sheetTitle = title ?? (produto ? "Editar produto" : prefill ? "Confirmar dados escaneados" : "Novo produto");
   const showHint = hint ?? (prefill ? "Extraído da tabela nutricional. Confirme e salve." : null);
@@ -41,10 +42,9 @@ export default function ProdutoForm({ produto, prefill, title, hint, onClose, on
           />
         </Field>
         <Field label="Gramas">
-          <input
-            type="number"
-            value={form.servingGrams ?? ""}
-            onChange={e => set("servingGrams", e.target.value === "" ? null : parseFloat(e.target.value))}
+          <NumberInput
+            value={form.servingGrams}
+            onChange={v => set("servingGrams", v)}
             placeholder="—"
             className="w-full bg-slate-100 rounded-lg px-3 py-2 outline-none"
           />
@@ -52,10 +52,10 @@ export default function ProdutoForm({ produto, prefill, title, hint, onClose, on
       </div>
       <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold pt-3">Por 100 g</div>
       <div className="grid grid-cols-2 gap-3 mt-1">
-        <Field label="Calorias (kcal)"><input type="number" value={per100("caloriesPerGram")} onChange={e => setPer100("caloriesPerGram", e.target.value)} className="w-full bg-slate-100 rounded-lg px-3 py-2 outline-none"/></Field>
-        <Field label="Proteína (g)"><input type="number" value={per100("proteinPerGram")} onChange={e => setPer100("proteinPerGram", e.target.value)} className="w-full bg-slate-100 rounded-lg px-3 py-2 outline-none"/></Field>
-        <Field label="Carbs (g)"><input type="number" value={per100("carbsPerGram")} onChange={e => setPer100("carbsPerGram", e.target.value)} className="w-full bg-slate-100 rounded-lg px-3 py-2 outline-none"/></Field>
-        <Field label="Gordura (g)"><input type="number" value={per100("fatPerGram")} onChange={e => setPer100("fatPerGram", e.target.value)} className="w-full bg-slate-100 rounded-lg px-3 py-2 outline-none"/></Field>
+        <Field label="Calorias (kcal)"><NumberInput value={per100("caloriesPerGram")} onChange={v => setPer100("caloriesPerGram", v)} className="w-full bg-slate-100 rounded-lg px-3 py-2 outline-none"/></Field>
+        <Field label="Proteína (g)"><NumberInput value={per100("proteinPerGram")} onChange={v => setPer100("proteinPerGram", v)} className="w-full bg-slate-100 rounded-lg px-3 py-2 outline-none"/></Field>
+        <Field label="Carbs (g)"><NumberInput value={per100("carbsPerGram")} onChange={v => setPer100("carbsPerGram", v)} className="w-full bg-slate-100 rounded-lg px-3 py-2 outline-none"/></Field>
+        <Field label="Gordura (g)"><NumberInput value={per100("fatPerGram")} onChange={v => setPer100("fatPerGram", v)} className="w-full bg-slate-100 rounded-lg px-3 py-2 outline-none"/></Field>
       </div>
       <button onClick={() => onSave(form)} disabled={!form.name.trim()} className="w-full mt-5 bg-emerald-500 disabled:bg-slate-200 text-white font-semibold py-3 rounded-full">Salvar</button>
     </Sheet>

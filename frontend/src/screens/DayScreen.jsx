@@ -3,6 +3,7 @@ import Icon from "../components/Icon.jsx";
 import Sheet from "../components/Sheet.jsx";
 import ConfirmDialog from "../components/ConfirmDialog.jsx";
 import ProdutoForm from "../components/ProdutoForm.jsx";
+import NumberInput from "../components/NumberInput.jsx";
 import { api } from "../lib/api.js";
 import { useStore } from "../state/store.jsx";
 
@@ -271,9 +272,9 @@ function AddItemSheet({ section, existing, produtos, comidas, onClose, onAdded, 
         <div className="bg-slate-50 rounded-xl p-3 mb-3">
           <div className="text-xs text-slate-500 mb-1">Quantidade ({qtyUnit})</div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setQty(v => Math.max(1, v - qtyStep))} className="w-9 h-9 rounded-full bg-white border border-slate-200 font-bold">−</button>
-            <input type="number" value={qty} onChange={e => setQty(parseFloat(e.target.value) || 0)} className="flex-1 text-center bg-white rounded-lg py-2 border border-slate-200 font-bold text-lg"/>
-            <button onClick={() => setQty(v => v + qtyStep)} className="w-9 h-9 rounded-full bg-white border border-slate-200 font-bold">+</button>
+            <button onClick={() => setQty(v => Math.max(1, (v ?? 0) - qtyStep))} className="w-9 h-9 rounded-full bg-white border border-slate-200 font-bold">−</button>
+            <NumberInput value={qty} onChange={v => setQty(v ?? 0)} className="flex-1 text-center bg-white rounded-lg py-2 border border-slate-200 font-bold text-lg"/>
+            <button onClick={() => setQty(v => (v ?? 0) + qtyStep)} className="w-9 h-9 rounded-full bg-white border border-slate-200 font-bold">+</button>
           </div>
         </div>
       )}

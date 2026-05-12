@@ -2,6 +2,7 @@ import { useState } from "react";
 import Icon from "../components/Icon.jsx";
 import Sheet from "../components/Sheet.jsx";
 import ConfirmDialog from "../components/ConfirmDialog.jsx";
+import NumberInput from "../components/NumberInput.jsx";
 import { api } from "../lib/api.js";
 import { useStore } from "../state/store.jsx";
 
@@ -124,7 +125,7 @@ function ComidaForm({ comida, produtos, onClose, onSave }) {
                 <div className="font-semibold text-sm text-slate-800 truncate">{p.name}</div>
                 <div className="text-[11px] text-slate-500">{Math.round(p.caloriesPerGram * it.quantityGrams)} kcal</div>
               </div>
-              <input type="number" value={it.quantityGrams} onChange={e => { const v = parseFloat(e.target.value) || 0; setItems(prev => prev.map((x, xi) => xi === i ? { ...x, quantityGrams: v } : x)); }} className="w-20 bg-white rounded-lg px-2 py-1 border border-slate-200 text-sm text-right"/>
+              <NumberInput value={it.quantityGrams} onChange={v => { const n = v ?? 0; setItems(prev => prev.map((x, xi) => xi === i ? { ...x, quantityGrams: n } : x)); }} className="w-20 bg-white rounded-lg px-2 py-1 border border-slate-200 text-sm text-right"/>
               <span className="text-xs text-slate-400">g</span>
               <button onClick={() => setItems(prev => prev.filter((_, xi) => xi !== i))} className="text-red-500"><Icon name="close" className="w-4 h-4"/></button>
             </div>
@@ -162,7 +163,7 @@ function ProdutoPicker({ produtos, onClose, onPick }) {
       </div>
       {picked && (
         <div className="flex items-center gap-2 mb-3">
-          <input type="number" value={g} onChange={e => setG(parseFloat(e.target.value) || 0)} className="flex-1 bg-slate-100 rounded-lg px-3 py-2 outline-none"/>
+          <NumberInput value={g} onChange={v => setG(v ?? 0)} className="flex-1 bg-slate-100 rounded-lg px-3 py-2 outline-none"/>
           <span className="text-sm text-slate-500">gramas</span>
         </div>
       )}

@@ -45,7 +45,7 @@ jobs:
 
       - name: Deploy
         run: |
-          sam deploy -t sam.native.yaml --no-confirm-changeset --parameter-overrides \
+          sam deploy -t sam.native.yaml --config-env ci --no-confirm-changeset --parameter-overrides \
             "AnthropicApiKey=${{ secrets.ANTHROPIC_API_KEY }}" \
             "SupabaseUrl=${{ secrets.SUPABASE_DB_URL }}" \
             "SupabaseUser=${{ secrets.SUPABASE_DB_USER }}" \
