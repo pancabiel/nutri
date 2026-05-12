@@ -12,6 +12,7 @@ import jakarta.inject.Inject;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +22,10 @@ import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class ChatService {
+
+    // Lambda runs in UTC; the app is Brazil-only. "Hoje" / time-of-day defaults
+    // must be resolved in the user's wall-clock zone or 22h local becomes "tomorrow".
+    private static final ZoneId ZONE = ZoneId.of("America/Sao_Paulo");
 
     @Inject AiService ai;
     @Inject ProdutoRepository produtos;
@@ -38,9 +43,9 @@ public class ChatService {
         if (date != null) {
             theDate = date;
         } else if (parsed.dateOffsetDays() != null) {
-            theDate = LocalDate.now().plusDays(parsed.dateOffsetDays());
+            theDate = LocalDate.now(ZONE).plusDays(parsed.dateOffsetDays());
         } else {
-            theDate = LocalDate.now();
+            theDate = LocalDate.now(ZONE);
         }
 
         // Section: explicit > AI-inferred from text > clock-based default.
@@ -50,7 +55,7 @@ public class ChatService {
         } else if (parsed.section() != null && !parsed.section().isBlank()) {
             sec = parsed.section();
         } else {
-            sec = defaultSection(LocalTime.now());
+            sec = defaultSection(LocalTime.now(ZONE));
         }
 
         return persist(items, theDate, sec);
@@ -58,8 +63,8 @@ public class ChatService {
 
     /** Persist already-parsed items (e.g. from a meal-photo analysis) to today's meal day. */
     public ChatResult saveParsed(List<AiService.ParsedItem> items, LocalDate date, String section) {
-        var theDate = date != null ? date : LocalDate.now();
-        var sec = (section != null && !section.isBlank()) ? section : defaultSection(LocalTime.now());
+        var theDate = date != null ? date : LocalDate.now(ZONE);
+        var sec = (section != null && !section.isBlank()) ? section : defaultSection(LocalTime.now(ZONE));
         return persist(items, theDate, sec);
     }
 
