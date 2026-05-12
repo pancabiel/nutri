@@ -5,7 +5,14 @@
       "Bash(del *)",
       "PowerShell(Test-Path *)",
       "PowerShell(java *)",
-      "PowerShell(Write-Output 'USER PATH:'; [Environment]::GetEnvironmentVariable\\('Path','User'\\); Write-Output ''; Write-Output 'MACHINE PATH:'; [Environment]::GetEnvironmentVariable\\('Path','Machine'\\))"
+      "PowerShell(Write-Output 'USER PATH:'; [Environment]::GetEnvironmentVariable\\('Path','User'\\); Write-Output ''; Write-Output 'MACHINE PATH:'; [Environment]::GetEnvironmentVariable\\('Path','Machine'\\))",
+      "Bash(git -C E:/repos/nutri status)",
+      "Bash(git -C E:/repos/nutri diff backend/src/main/resources/application.properties)",
+      "Bash(git -C E:/repos/nutri diff .claude/settings.local.json)",
+      "Bash(git -C E:/repos/nutri log -5 --oneline)",
+      "Bash(git -C E:/repos/nutri add backend/src/main/java/com/nutri/service/ChatService.java)",
+      "Bash(git -C E:/repos/nutri commit -m ' *)",
+      "Bash(git -C E:/repos/nutri push)"
     ]
   }
 }
