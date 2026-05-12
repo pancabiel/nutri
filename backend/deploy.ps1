@@ -25,10 +25,11 @@ foreach ($key in 'ANTHROPIC_API_KEY','SUPABASE_DB_URL','SUPABASE_DB_USER','SUPAB
 }
 
 Write-Host "==> Building native image (3-6 min)..." -ForegroundColor Cyan
-mvn package -Pnative "-Dquarkus.native.container-build=true" "-Dquarkus.native.builder-image=quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-25"
+mvn clean package -Pnative "-Dquarkus.native.container-build=true" "-Dquarkus.native.builder-image=quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-25"
 if ($LASTEXITCODE -ne 0) { Write-Error "Build failed"; exit 1 }
 
 Write-Host "==> Deploying to AWS..." -ForegroundColor Cyan
+$env:SAM_CLI_TELEMETRY = "0"
 $paramOverrides = @(
     "AnthropicApiKey=$($envVars['ANTHROPIC_API_KEY'])",
     "SupabaseUrl=$($envVars['SUPABASE_DB_URL'])",
