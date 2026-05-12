@@ -40,6 +40,8 @@ jobs:
 
       - name: Build native image
         run: mvn package -Pnative -DskipTests
+        env:
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
 
       - name: Deploy
         run: |

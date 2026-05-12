@@ -64,7 +64,13 @@ export const api = {
   scanLabel:   (b64, mime)   => http(`/scan-nutrition-label`, { method: "POST", body: JSON.stringify({ imageBase64: b64, mediaType: mime }) }),
 };
 
-export const todayISO = () => new Date().toISOString().slice(0, 10);
+export const todayISO = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
 
 export async function fileToBase64(file) {
   const buf = await file.arrayBuffer();
