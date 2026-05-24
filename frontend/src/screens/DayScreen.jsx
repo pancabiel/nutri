@@ -261,7 +261,7 @@ function AddItemSheet({ section, existing, produtos, comidas, onClose, onAdded, 
           <div className="max-h-64 overflow-y-auto scroll-hide space-y-1 mb-3">
             {list.map(x => (
               <button key={x.id} onClick={() => setPicked({ kind: tab === "produtos" ? "produto" : "comida", id: x.id })} className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center justify-between ${picked?.id === x.id ? "bg-emerald-50 border border-emerald-300" : "hover:bg-slate-50 border border-transparent"}`}>
-                <div className="font-semibold text-slate-800 text-sm">{x.name}</div>
+                <div className="font-semibold text-slate-800 text-sm">{x.name}{x.brand ? <span className="text-slate-400 font-normal"> ({x.brand})</span> : null}</div>
                 {picked?.id === x.id && <Icon name="check" className="w-5 h-5 text-emerald-600"/>}
               </button>
             ))}

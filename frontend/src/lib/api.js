@@ -1,36 +1,26 @@
-const BASE = import.meta.env.VITE_API_BASE || "/api";
-const AUTH_KEY = "nutri_auth";
+import { supabase, currentToken } from "./supabase.js";
 
-export const auth = {
-  get:   ()  => localStorage.getItem(AUTH_KEY) || "",
-  set:   (p) => localStorage.setItem(AUTH_KEY, p),
-  clear: ()  => localStorage.removeItem(AUTH_KEY),
-};
+const BASE = import.meta.env.VITE_API_BASE || "/api";
 
 async function http(path, opts = {}) {
+  const token = await currentToken();
   const res = await fetch(BASE + path, {
     headers: {
       "Content-Type": "application/json",
-      "X-Auth": auth.get(),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(opts.headers || {}),
     },
     ...opts,
   });
   if (res.status === 401) {
-    auth.clear();
+    // Token expired or invalid — push the user back to the login screen.
+    await supabase.auth.signOut();
     window.location.reload();
     throw new Error("401 Unauthorized");
   }
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   if (res.status === 204) return null;
   return res.json();
-}
-
-export async function verifyPassword(password) {
-  const res = await fetch(BASE + "/produtos?q=__ping__", {
-    headers: { "X-Auth": password },
-  });
-  return res.status !== 401;
 }
 
 export const api = {
@@ -58,6 +48,15 @@ export const api = {
     updateItem: (id, it)      => http(`/meal-days/items/${id}`, { method: "PUT", body: JSON.stringify(it) }),
     deleteItem: (id)          => http(`/meal-days/items/${id}`, { method: "DELETE" }),
   },
+  // profile
+  profile: {
+    get:    ()                => http(`/profile`),
+    update: (u)               => http(`/profile`, { method: "PUT", body: JSON.stringify(u) }),
+  },
+  // account (LGPD)
+  account: {
+    delete: ()                => http(`/account`, { method: "DELETE" }),
+  },
   // ai
   chat:        (msg, date, section) => http(`/chat-log`, { method: "POST", body: JSON.stringify({ message: msg, date, section }) }),
   analyzeMeal: (b64, mime)   => http(`/analyze-meal-image`, { method: "POST", body: JSON.stringify({ imageBase64: b64, mediaType: mime }) }),
@@ -72,12 +71,62 @@ export const todayISO = () => {
   return `${y}-${m}-${day}`;
 };
 
+const MAX_DIMENSION = 1024;       // px on longest side
+const JPEG_QUALITY  = 0.85;
+
+/**
+ * Read a File into base64. For images we first downscale to MAX_DIMENSION on the
+ * longest side and re-encode as JPEG, which can shrink a 12-megapixel phone photo
+ * by 50-90% before it ever hits the Anthropic vision API. Token cost drops
+ * proportionally and so does network latency on mobile.
+ */
 export async function fileToBase64(file) {
+  if (file.type && file.type.startsWith("image/")) {
+    try {
+      return await resizeImageToBase64(file);
+    } catch {
+      // fall through to raw encoding if canvas isn't available for some reason
+    }
+  }
+  return await rawToBase64(file);
+}
+
+async function rawToBase64(file) {
   const buf = await file.arrayBuffer();
   let s = "";
   const bytes = new Uint8Array(buf);
   for (let i = 0; i < bytes.byteLength; i++) s += String.fromCharCode(bytes[i]);
   return btoa(s);
+}
+
+async function resizeImageToBase64(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await loadImage(url);
+    const scale = Math.min(1, MAX_DIMENSION / Math.max(img.width, img.height));
+    const w = Math.round(img.width * scale);
+    const h = Math.round(img.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0, w, h);
+    const dataUrl = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+    // dataUrl looks like "data:image/jpeg;base64,XXXX" — strip the prefix.
+    const comma = dataUrl.indexOf(",");
+    return dataUrl.slice(comma + 1);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
 }
 
 export function pickPhoto({ camera = false } = {}) {
@@ -93,7 +142,9 @@ export function pickPhoto({ camera = false } = {}) {
       document.body.removeChild(input);
       if (!file) { resolve(null); return; }
       const b64 = await fileToBase64(file);
-      resolve({ b64, mime: file.type || "image/jpeg" });
+      // After downscaling we always send JPEG; for raw fallbacks keep the original mime.
+      const mime = file.type && file.type.startsWith("image/") ? "image/jpeg" : (file.type || "image/jpeg");
+      resolve({ b64, mime });
     };
     input.click();
   });

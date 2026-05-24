@@ -1,5 +1,6 @@
 package com.nutri.resource;
 
+import com.nutri.auth.CurrentUser;
 import com.nutri.model.MealDay;
 import com.nutri.repository.MealRepository;
 import jakarta.inject.Inject;
@@ -17,41 +18,42 @@ import java.util.UUID;
 public class MealResource {
 
     @Inject MealRepository repo;
+    @Inject CurrentUser user;
 
     @GET @Path("recent")
     public List<MealRepository.DaySummary> recent(@QueryParam("days") @DefaultValue("30") int days) {
-        return repo.recent(days);
+        return repo.recent(user.userId(), days);
     }
 
     @GET @Path("{date}")
     public MealDay day(@PathParam("date") String date) {
-        return repo.getOrCreate(LocalDate.parse(date));
+        return repo.getOrCreate(user.userId(), LocalDate.parse(date));
     }
 
     @POST @Path("{date}/sections")
     public MealDay.MealSection addSection(@PathParam("date") String date, NewSection req) {
-        return repo.addSection(LocalDate.parse(date), req.name());
+        return repo.addSection(user.userId(), LocalDate.parse(date), req.name());
     }
 
     @DELETE @Path("sections/{sectionId}")
     public Response deleteSection(@PathParam("sectionId") UUID id) {
-        repo.deleteSection(id);
+        repo.deleteSection(user.userId(), id);
         return Response.noContent().build();
     }
 
     @POST @Path("sections/{sectionId}/items")
     public MealDay.MealItem addItem(@PathParam("sectionId") UUID sectionId, MealDay.MealItem item) {
-        return repo.addItem(sectionId, item);
+        return repo.addItem(user.userId(), sectionId, item);
     }
 
     @PUT @Path("items/{itemId}")
     public MealDay.MealItem updateItem(@PathParam("itemId") UUID id, MealDay.MealItem item) {
-        return repo.updateItem(id, item);
+        return repo.updateItem(user.userId(), id, item);
     }
 
     @DELETE @Path("items/{itemId}")
     public Response deleteItem(@PathParam("itemId") UUID id) {
-        repo.deleteItem(id);
+        repo.deleteItem(user.userId(), id);
         return Response.noContent().build();
     }
 

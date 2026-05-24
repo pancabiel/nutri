@@ -1,5 +1,6 @@
 package com.nutri.ai;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -38,5 +39,17 @@ public interface AnthropicClient {
 
     record ContentBlock(String type, String text) {}
 
-    record Usage(int input_tokens, int output_tokens) {}
+    /**
+     * Token accounting from Anthropic. cache_* fields are optional (absent → 0)
+     * and only populated when prompt caching is in use.
+     */
+    record Usage(
+        int input_tokens,
+        int output_tokens,
+        @JsonProperty("cache_creation_input_tokens") Integer cache_creation_input_tokens,
+        @JsonProperty("cache_read_input_tokens") Integer cache_read_input_tokens
+    ) {
+        public int cacheCreationOrZero() { return cache_creation_input_tokens == null ? 0 : cache_creation_input_tokens; }
+        public int cacheReadOrZero()     { return cache_read_input_tokens == null ? 0 : cache_read_input_tokens; }
+    }
 }

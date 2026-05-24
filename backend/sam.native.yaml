@@ -13,9 +13,21 @@ Parameters:
   SupabasePassword:
     Type: String
     NoEcho: true
-  AppPassword:
+  SupabaseJwtIssuer:
+    Type: String
+    Description: e.g. https://<project-ref>.supabase.co/auth/v1
+  CorsOrigins:
+    Type: String
+    Default: '*'
+    Description: Comma-separated list. In prod, set to your frontend domain only.
+  CronSecret:
     Type: String
     NoEcho: true
+    Description: Shared secret for /cron/* endpoints (kill-switch-check). Generate with openssl rand -hex 32.
+  KillswitchDailyUsd:
+    Type: String
+    Default: '50'
+    Description: Trip the kill switch if rolling-24h Claude spend exceeds this many USD.
 
 Globals:
   Api:
@@ -40,10 +52,51 @@ Resources:
           SUPABASE_DB_URL: !Ref SupabaseUrl
           SUPABASE_DB_USER: !Ref SupabaseUser
           SUPABASE_DB_PASSWORD: !Ref SupabasePassword
-          APP_PASSWORD: !Ref AppPassword
+          SUPABASE_JWT_ISSUER: !Ref SupabaseJwtIssuer
+          CORS_ORIGINS: !Ref CorsOrigins
+          CRON_SECRET: !Ref CronSecret
+          KILLSWITCH_DAILY_USD: !Ref KillswitchDailyUsd
       Events:
         HttpApiEvent:
           Type: HttpApi
+        KillSwitchCheck:
+          Type: Schedule
+          Properties:
+            Name: nutri-kill-switch-check
+            Description: Hourly check — auto-trip kill switch if 24h Claude spend exceeds threshold.
+            Schedule: rate(1 hour)
+            Enabled: true
+            Input: !Sub |
+              {
+                "version": "2.0",
+                "routeKey": "POST /cron/kill-switch-check",
+                "rawPath": "/cron/kill-switch-check",
+                "rawQueryString": "",
+                "headers": {
+                  "x-cron-secret": "${CronSecret}",
+                  "content-type": "application/json",
+                  "content-length": "0"
+                },
+                "requestContext": {
+                  "accountId": "scheduled",
+                  "apiId": "scheduled",
+                  "domainName": "scheduled.invoke",
+                  "domainPrefix": "scheduled",
+                  "http": {
+                    "method": "POST",
+                    "path": "/cron/kill-switch-check",
+                    "protocol": "HTTP/1.1",
+                    "sourceIp": "127.0.0.1",
+                    "userAgent": "EventBridge-Scheduled-Invoke"
+                  },
+                  "requestId": "scheduled",
+                  "routeKey": "POST /cron/kill-switch-check",
+                  "stage": "$default",
+                  "time": "01/Jan/2024:00:00:00 +0000",
+                  "timeEpoch": 1704067200000
+                },
+                "isBase64Encoded": false
+              }
 
 Outputs:
   NutriBackendNativeApi:

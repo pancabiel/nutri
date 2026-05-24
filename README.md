@@ -81,7 +81,7 @@ Expected AI JSON for chat + meal image (array):
 
 ## Deploy
 
-See `backend/DEPLOY.md` for the AWS Lambda native deployment walkthrough.
+Backend deploys to AWS Lambda via `.github/workflows/deploy-backend.yml` on push to `main` (paths: `backend/**`). It builds the GraalVM native image and runs `sam deploy -t backend/sam.native.yaml` with values from GitHub Secrets. Frontend deploys to Cloudflare Pages from the dashboard.
 
 ## Mockup
 

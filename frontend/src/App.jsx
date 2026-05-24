@@ -7,17 +7,19 @@ import DayScreen from "./screens/DayScreen.jsx";
 import ProdutosScreen from "./screens/ProdutosScreen.jsx";
 import ComidasScreen from "./screens/ComidasScreen.jsx";
 import LoginScreen from "./screens/LoginScreen.jsx";
-import { todayISO, auth } from "./lib/api.js";
+import OnboardingScreen from "./screens/OnboardingScreen.jsx";
+import SettingsScreen from "./screens/SettingsScreen.jsx";
+import { todayISO, api } from "./lib/api.js";
+import { supabase } from "./lib/supabase.js";
 
-function Shell() {
+function Shell({ onOpenSettings }) {
   const { toast, refreshProdutos, refreshComidas } = useStore();
   const [screen, setScreen] = useState("chat");
   const [date, setDate] = useState(todayISO());
 
   useEffect(() => { refreshProdutos(); refreshComidas(); }, []);
 
-  const screens = {
-    chat: <ChatScreen onOpenDay={() => { setDate(todayISO()); setScreen("day"); }} />,
+  const otherScreens = {
     calendar: <CalendarScreen onPickDay={(d) => { setDate(d); setScreen("day"); }} />,
     day: <DayScreen date={date} onBack={() => setScreen("calendar")} />,
     produtos: <ProdutosScreen />,
@@ -26,7 +28,18 @@ function Shell() {
 
   return (
     <div className="h-[100dvh] w-full flex flex-col bg-white relative overflow-hidden">
-      <div className="flex-1 overflow-hidden relative">{screens[screen]}</div>
+      <header className="shrink-0 flex items-center justify-between px-4 py-2 border-b border-slate-100">
+        <span className="text-sm font-semibold text-slate-700">Nutri</span>
+        <button onClick={onOpenSettings} className="text-slate-500 p-1">
+          <Icon name="cog" className="w-5 h-5" />
+        </button>
+      </header>
+      <div className="flex-1 overflow-hidden relative">
+        <div className={screen === "chat" ? "absolute inset-0" : "hidden"}>
+          <ChatScreen onOpenDay={() => { setDate(todayISO()); setScreen("day"); }} />
+        </div>
+        {screen !== "chat" && otherScreens[screen]}
+      </div>
 
       <nav className="shrink-0 border-t border-slate-200 bg-white/95 backdrop-blur px-2 pt-2 pb-[max(env(safe-area-inset-bottom),12px)]">
         <div className="grid grid-cols-4 gap-1 max-w-md mx-auto">
@@ -59,7 +72,59 @@ function NavBtn({ active, onClick, icon, label }) {
 }
 
 export default function App() {
-  const [authed, setAuthed] = useState(() => !!auth.get());
-  if (!authed) return <LoginScreen onAuthed={() => setAuthed(true)} />;
-  return <StoreProvider><Shell /></StoreProvider>;
+  const [session, setSession] = useState(null);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setSessionLoaded(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession((prev) => {
+        if (prev?.user?.id === s?.user?.id) return prev;
+        setProfile(null);
+        setProfileLoaded(false);
+        return s;
+      });
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!session) { setProfileLoaded(true); return; }
+    setProfileLoaded(false);
+    api.profile.get()
+      .then(setProfile)
+      .catch(() => setProfile(null))
+      .finally(() => setProfileLoaded(true));
+  }, [session]);
+
+  if (!sessionLoaded) return <Splash />;
+  if (!session) return <LoginScreen />;
+  if (!profileLoaded) return <Splash />;
+  if (!profile?.onboardingComplete) {
+    return <OnboardingScreen onDone={() => {
+      api.profile.get().then(setProfile);
+    }} />;
+  }
+
+  return (
+    <StoreProvider>
+      {showSettings
+        ? <SettingsScreen onClose={() => setShowSettings(false)} />
+        : <Shell onOpenSettings={() => setShowSettings(true)} />}
+    </StoreProvider>
+  );
+}
+
+function Splash() {
+  return (
+    <div className="h-[100dvh] w-full flex items-center justify-center bg-white">
+      <div className="text-slate-400 text-sm">Carregando…</div>
+    </div>
+  );
 }
