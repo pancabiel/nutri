@@ -254,7 +254,7 @@ public class MealRepository {
             s.setObject(1, sectionId);
             s.setObject(2, userId);
             try (var rs = s.executeQuery()) {
-                if (!rs.next()) throw new RuntimeException("section not found or not owned");
+                if (!rs.next()) throw new NotOwnedException("section not found or not owned");
             }
         } catch (SQLException e) { throw new RuntimeException(e); }
     }
@@ -270,7 +270,7 @@ public class MealRepository {
             s.setObject(1, itemId);
             s.setObject(2, userId);
             try (var rs = s.executeQuery()) {
-                if (!rs.next()) throw new RuntimeException("item not found or not owned");
+                if (!rs.next()) throw new NotOwnedException("item not found or not owned");
             }
         } catch (SQLException e) { throw new RuntimeException(e); }
     }

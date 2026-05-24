@@ -198,8 +198,10 @@ public final class JwtValidator {
                 if (kid == null || !"EC".equals(kty) || !"ES256".equals(alg)) continue;
                 fresh.put(kid, parseEcKey(key));
             }
-            keyCache.clear();
+            // Add-then-prune (not clear-then-add) so concurrent readers in resolveKey
+            // never see an empty cache mid-refresh and trigger a redundant refresh.
             keyCache.putAll(fresh);
+            keyCache.keySet().retainAll(fresh.keySet());
             LOG.infof("loaded %d JWKS key(s)", fresh.size());
         } catch (InvalidJwtException e) {
             throw e;

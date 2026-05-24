@@ -103,7 +103,7 @@ public class ComidaRepository {
                 s.setObject(3, userId);
                 rows = s.executeUpdate();
             }
-            if (rows == 0) throw new RuntimeException("comida not found or not owned");
+            if (rows == 0) throw new NotOwnedException("comida not found or not owned");
             try (var s = conn.prepareStatement(
                 "delete from comida_produtos where comida_id = ?")) {
                 s.setObject(1, id);
@@ -136,7 +136,7 @@ public class ComidaRepository {
                 check.setObject(1, it.produtoId());
                 check.setObject(2, userId);
                 try (var rs = check.executeQuery()) {
-                    if (!rs.next()) throw new RuntimeException("produto " + it.produtoId() + " not owned");
+                    if (!rs.next()) throw new NotOwnedException("produto " + it.produtoId() + " not owned");
                 }
                 s.setObject(1, UUID.randomUUID());
                 s.setObject(2, comidaId);

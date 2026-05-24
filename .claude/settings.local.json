@@ -12,7 +12,8 @@
       "Bash(git -C E:/repos/nutri log -5 --oneline)",
       "Bash(git -C E:/repos/nutri add backend/src/main/java/com/nutri/service/ChatService.java)",
       "Bash(git -C E:/repos/nutri commit -m ' *)",
-      "Bash(git -C E:/repos/nutri push)"
+      "Bash(git -C E:/repos/nutri push)",
+      "Bash(gh pr *)"
     ]
   }
 }

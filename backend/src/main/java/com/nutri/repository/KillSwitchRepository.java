@@ -8,23 +8,43 @@ import org.jboss.logging.Logger;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Global circuit breaker. One row in {@code kill_switch} (id = 'global'). When
  * {@code tripped = true}, {@code AiService} refuses every Claude call until an
  * operator clears it.
+ *
+ * {@link #isTripped()} is on the hot path (every Claude call), so we cache the
+ * value in-process for a few seconds. The cron only flips state hourly and a
+ * manual reset is an operator action — a short stale window is fine, and beats
+ * paying a DB roundtrip per call.
  */
 @ApplicationScoped
 public class KillSwitchRepository {
 
     private static final Logger LOG = Logger.getLogger(KillSwitchRepository.class);
     private static final String ID = "global";
+    private static final long CACHE_TTL_MILLIS = 5_000;
 
     @Inject AgroalDataSource ds;
 
+    private record CachedState(boolean tripped, long expiresAtMillis) {}
+    private final AtomicReference<CachedState> cache = new AtomicReference<>();
+
     /** Read the current state. Fails open (returns {@code false}) on DB error so a transient
-     *  blip doesn't take the product offline. The cron will re-trip on the next run if needed. */
+     *  blip doesn't take the product offline. The cron will re-trip on the next run if needed.
+     *  Result cached in-process for {@value #CACHE_TTL_MILLIS} ms to keep this off the hot path. */
     public boolean isTripped() {
+        long now = System.currentTimeMillis();
+        CachedState cached = cache.get();
+        if (cached != null && cached.expiresAtMillis > now) return cached.tripped;
+        boolean fresh = readFromDb();
+        cache.set(new CachedState(fresh, now + CACHE_TTL_MILLIS));
+        return fresh;
+    }
+
+    private boolean readFromDb() {
         try (var c = ds.getConnection();
              var s = c.prepareStatement("select tripped from kill_switch where id = ?")) {
             s.setString(1, ID);
@@ -54,6 +74,7 @@ public class KillSwitchRepository {
             s.setString(3, reason);
             s.setLong(4, costMicroUsd);
             s.executeUpdate();
+            cache.set(null);
             LOG.warnf("kill switch TRIPPED: reason=%s cost_micro_usd=%d", reason, costMicroUsd);
         } catch (SQLException e) { throw new RuntimeException(e); }
     }
@@ -64,6 +85,7 @@ public class KillSwitchRepository {
              var s = c.prepareStatement("update kill_switch set tripped = false, reason = null where id = ?")) {
             s.setString(1, ID);
             s.executeUpdate();
+            cache.set(null);
         } catch (SQLException e) { throw new RuntimeException(e); }
     }
 }

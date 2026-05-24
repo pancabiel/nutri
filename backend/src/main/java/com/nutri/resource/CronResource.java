@@ -60,7 +60,7 @@ public class CronResource {
 
     @ConfigProperty(name = "cron.secret")                       Optional<String> cronSecret;
     @ConfigProperty(name = "killswitch.daily-usd-threshold",
-                    defaultValue = "500")                       double dailyUsdThreshold;
+                    defaultValue = "50")                        double dailyUsdThreshold;
     @ConfigProperty(name = "killswitch.window-hours",
                     defaultValue = "24")                        int windowHours;
 

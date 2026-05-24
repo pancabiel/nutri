@@ -105,7 +105,7 @@ public class ProdutoRepository {
             s.setObject(9, id);
             s.setObject(10, userId);
             try (var rs = s.executeQuery()) {
-                if (!rs.next()) throw new RuntimeException("produto not found or not owned");
+                if (!rs.next()) throw new NotOwnedException("produto not found or not owned");
                 return map(rs);
             }
         } catch (SQLException e) { throw new RuntimeException(e); }
