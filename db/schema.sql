@@ -275,3 +275,29 @@ insert into kill_switch (id, tripped) values ('global', false) on conflict (id) 
 -- lock the row from any client that comes in via PostgREST / supabase-js.
 alter table kill_switch enable row level security;
 -- No policies = nobody outside the owner role can read or write. That's the goal.
+
+-- ============================================================
+-- BILLING HARDENING (2026-05 — Sprint 2 review follow-ups)
+--
+-- 1. A Stripe customer must map to at most one user. We already only set
+--    stripe_customer_id once (setStripeCustomerId WHERE stripe_customer_id IS
+--    NULL), but enforce it at the DB layer too so byStripeCustomerId can't
+--    silently resolve to one of multiple rows if the invariant ever breaks.
+-- 2. stripe_event_at: latest event.created timestamp we've processed for the
+--    user's current subscription. Stripe does NOT guarantee event delivery
+--    order; without this gate a stale customer.subscription.updated
+--    (status=active) arriving after customer.subscription.deleted would
+--    revive a canceled subscription. handleSubscriptionUpsert /
+--    handleSubscriptionDeleted skip the write when the incoming event is
+--    older than what we already applied.
+-- ============================================================
+
+do $$ begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'profiles_stripe_customer_id_key'
+  ) then
+    alter table profiles add constraint profiles_stripe_customer_id_key unique (stripe_customer_id);
+  end if;
+end $$;
+
+alter table profiles add column if not exists stripe_event_at timestamptz;

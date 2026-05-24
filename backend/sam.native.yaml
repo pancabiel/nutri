@@ -28,6 +28,28 @@ Parameters:
     Type: String
     Default: '50'
     Description: Trip the kill switch if rolling-24h Claude spend exceeds this many USD.
+  StripeSecretKey:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: Stripe secret key (sk_test_... or sk_live_...). Leave empty to disable billing endpoints.
+  StripeWebhookSecret:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: Stripe webhook signing secret (whsec_...). Required for /billing/webhook.
+  StripePriceMonthly:
+    Type: String
+    Default: ''
+    Description: Stripe Price ID for the monthly plan (price_...).
+  StripePriceYearly:
+    Type: String
+    Default: ''
+    Description: Stripe Price ID for the yearly plan (price_...).
+  AppFrontendUrl:
+    Type: String
+    Default: 'http://localhost:5173'
+    Description: Base URL of the deployed frontend — used for Checkout success/cancel + Portal return URLs.
 
 Globals:
   Api:
@@ -56,6 +78,11 @@ Resources:
           CORS_ORIGINS: !Ref CorsOrigins
           CRON_SECRET: !Ref CronSecret
           KILLSWITCH_DAILY_USD: !Ref KillswitchDailyUsd
+          STRIPE_SECRET_KEY: !Ref StripeSecretKey
+          STRIPE_WEBHOOK_SECRET: !Ref StripeWebhookSecret
+          STRIPE_PRICE_MONTHLY: !Ref StripePriceMonthly
+          STRIPE_PRICE_YEARLY: !Ref StripePriceYearly
+          APP_FRONTEND_URL: !Ref AppFrontendUrl
       Events:
         HttpApiEvent:
           Type: HttpApi

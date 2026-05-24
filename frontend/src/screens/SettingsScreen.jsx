@@ -1,22 +1,47 @@
 import { useEffect, useState } from "react";
+import Icon from "../components/Icon.jsx";
 import { api } from "../lib/api.js";
 import { supabase } from "../lib/supabase.js";
 
-export default function SettingsScreen({ onClose }) {
-  const [profile, setProfile] = useState(null);
+export default function SettingsScreen({ onClose, profile: profileProp }) {
+  const [profile, setProfile] = useState(profileProp ?? null);
   const [email, setEmail] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [stage, setStage] = useState("idle"); // idle | confirming | deleting
+  const [portalBusy, setPortalBusy] = useState(false);
+  const [portalError, setPortalError] = useState("");
 
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getUser();
       setEmail(data.user?.email ?? "");
-      try { setProfile(await api.profile.get()); } catch {}
+      if (!profileProp) {
+        try { setProfile(await api.profile.get()); } catch {}
+      }
     })();
   }, []);
+
+  // Keep local copy in sync if parent refreshes after Stripe return.
+  useEffect(() => { if (profileProp) setProfile(profileProp); }, [profileProp]);
+
+  function openUpgrade() {
+    window.dispatchEvent(new CustomEvent("nutri:open-upgrade"));
+  }
+
+  async function openPortal() {
+    setPortalBusy(true);
+    setPortalError("");
+    try {
+      const { url } = await api.billing.portal();
+      window.location.assign(url);
+    } catch (e) {
+      console.error("portal failed", e);
+      setPortalError("Não consegui abrir o portal. Tente de novo em alguns segundos.");
+      setPortalBusy(false);
+    }
+  }
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -54,8 +79,50 @@ export default function SettingsScreen({ onClose }) {
           <div className="text-xs uppercase tracking-wide text-slate-400 mb-2">Conta</div>
           <div className="rounded-xl border border-slate-200 bg-white">
             <Row label="Email" value={email || "—"} />
-            <Row label="Plano" value={profile?.isPro ? "Pro" : "Gratuito"} />
           </div>
+        </section>
+
+        <section>
+          <div className="text-xs uppercase tracking-wide text-slate-400 mb-2">Plano</div>
+          {profile?.isPro ? (
+            <div className="rounded-2xl border border-emerald-300 bg-gradient-to-br from-emerald-50 to-white p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Icon name="crown" className="w-5 h-5 text-emerald-600" />
+                <span className="font-bold text-emerald-700">Nutri Pro ativo</span>
+              </div>
+              <p className="text-sm text-slate-600 mb-3">
+                {proSubLabel(profile)}
+              </p>
+              {portalError && (
+                <div className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 mb-3">
+                  {portalError}
+                </div>
+              )}
+              <button
+                onClick={openPortal}
+                disabled={portalBusy}
+                className="w-full rounded-xl bg-white border border-emerald-300 text-emerald-700 font-medium py-3 disabled:opacity-60"
+              >
+                {portalBusy ? "Abrindo…" : "Gerenciar assinatura"}
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Icon name="lock" className="w-4 h-4 text-slate-400" />
+                <span className="font-semibold text-slate-700">Plano Gratuito</span>
+              </div>
+              <p className="text-sm text-slate-500 mb-3">
+                Você tem 3 mensagens, 1 foto e 1 scan de rótulo no total. Assine o Pro pra liberar 20 chats / 10 fotos / 10 scans por dia.
+              </p>
+              <button
+                onClick={openUpgrade}
+                className="w-full rounded-xl bg-emerald-500 text-white font-semibold py-3 inline-flex items-center justify-center gap-2"
+              >
+                <Icon name="sparkles" className="w-4 h-4" /> Assinar Nutri Pro
+              </button>
+            </div>
+          )}
         </section>
 
         {profile?.onboardingComplete && (
@@ -134,4 +201,15 @@ function Row({ label, value }) {
       <span className="text-sm font-medium text-slate-900">{value}</span>
     </div>
   );
+}
+
+function proSubLabel(profile) {
+  if (!profile?.proUntil) return "Sua assinatura está ativa.";
+  const d = new Date(profile.proUntil);
+  if (Number.isNaN(d.getTime())) return "Sua assinatura está ativa.";
+  const fmt = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+  if (profile.subscriptionStatus === "canceled" || d.getTime() <= Date.now()) {
+    return `Acesso até ${fmt}.`;
+  }
+  return `Próxima cobrança em ${fmt}.`;
 }

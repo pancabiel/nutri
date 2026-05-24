@@ -51,4 +51,9 @@ jobs:
             "SupabaseJwtIssuer=${{ secrets.SUPABASE_JWT_ISSUER }}" \
             "CorsOrigins=${{ secrets.CORS_ORIGINS }}" \
             "CronSecret=${{ secrets.CRON_SECRET }}" \
-            "KillswitchDailyUsd=${{ vars.KILLSWITCH_DAILY_USD || secrets.KILLSWITCH_DAILY_USD || '50' }}"
+            "KillswitchDailyUsd=${{ vars.KILLSWITCH_DAILY_USD || secrets.KILLSWITCH_DAILY_USD || '50' }}" \
+            "StripeSecretKey=${{ secrets.STRIPE_SECRET_KEY }}" \
+            "StripeWebhookSecret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
+            "StripePriceMonthly=${{ vars.STRIPE_PRICE_MONTHLY || secrets.STRIPE_PRICE_MONTHLY }}" \
+            "StripePriceYearly=${{ vars.STRIPE_PRICE_YEARLY || secrets.STRIPE_PRICE_YEARLY }}" \
+            "AppFrontendUrl=${{ vars.APP_FRONTEND_URL || 'https://nutri.pancabiel.workers.dev' }}"

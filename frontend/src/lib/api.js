@@ -2,6 +2,21 @@ import { supabase, currentToken } from "./supabase.js";
 
 const BASE = import.meta.env.VITE_API_BASE || "/api";
 
+/**
+ * Thrown when the backend returns 402 with a CapExceededMapper body. The original
+ * JSON ({kind, tier, window, limit, used, message}) is attached as `.cap` so the
+ * upgrade modal can show the right copy. App.jsx also listens for the global
+ * `nutri:cap-exceeded` event so it can pop the modal without each caller wiring
+ * its own handler.
+ */
+export class CapError extends Error {
+  constructor(cap) {
+    super(cap?.message || "Limite atingido");
+    this.name = "CapError";
+    this.cap = cap;
+  }
+}
+
 async function http(path, opts = {}) {
   const token = await currentToken();
   const res = await fetch(BASE + path, {
@@ -17,6 +32,13 @@ async function http(path, opts = {}) {
     await supabase.auth.signOut();
     window.location.reload();
     throw new Error("401 Unauthorized");
+  }
+  if (res.status === 402) {
+    let cap = null;
+    try { cap = await res.json(); } catch {}
+    // Surface globally so App.jsx can pop the upgrade modal without each caller wiring it.
+    try { window.dispatchEvent(new CustomEvent("nutri:cap-exceeded", { detail: cap })); } catch {}
+    throw new CapError(cap);
   }
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   if (res.status === 204) return null;
@@ -56,6 +78,11 @@ export const api = {
   // account (LGPD)
   account: {
     delete: ()                => http(`/account`, { method: "DELETE" }),
+  },
+  // billing (Stripe)
+  billing: {
+    checkout: (plan)          => http(`/billing/checkout`, { method: "POST", body: JSON.stringify({ plan }) }),
+    portal:   ()              => http(`/billing/portal`, { method: "POST" }),
   },
   // ai
   chat:        (msg, date, section) => http(`/chat-log`, { method: "POST", body: JSON.stringify({ message: msg, date, section }) }),

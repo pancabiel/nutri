@@ -100,12 +100,13 @@ class JwtValidatorTest {
     @Test
     void malformedSignature_throws() throws Exception {
         var token = signToken(KID, claims(UUID.randomUUID(), ISSUER, Instant.now().plusSeconds(60)));
-        // Flip the last byte of the signature segment.
+        // Decode the signature, flip a high-entropy middle byte (not the last one — the
+        // last base64 char carries only a few useful bits and the flipped value can still
+        // happen to verify ~1 in N runs, making the test flaky), re-encode.
         int lastDot = token.lastIndexOf('.');
-        var sigSegment = token.substring(lastDot + 1);
-        var tampered = token.substring(0, lastDot + 1)
-            + sigSegment.substring(0, sigSegment.length() - 1)
-            + (sigSegment.charAt(sigSegment.length() - 1) == 'A' ? 'B' : 'A');
+        byte[] sig = Base64.getUrlDecoder().decode(token.substring(lastDot + 1));
+        sig[sig.length / 2] ^= (byte) 0xFF;
+        var tampered = token.substring(0, lastDot + 1) + Base64.getUrlEncoder().withoutPadding().encodeToString(sig);
         var validator = new JwtValidator(jwksUrl, ISSUER, null);
 
         assertThrows(JwtValidator.InvalidJwtException.class, () -> validator.validate(tampered));
