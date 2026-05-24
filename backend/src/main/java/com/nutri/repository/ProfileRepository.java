@@ -76,17 +76,63 @@ public class ProfileRepository {
         } catch (SQLException e) { throw new RuntimeException(e); }
     }
 
-    /** Subscription side: called from the Stripe webhook handler in Sprint 2. */
-    public void updateSubscription(UUID userId, String stripeCustomerId, String stripeSubscriptionId,
-                                   String status, OffsetDateTime proUntil) {
-        boolean isPro = "active".equals(status);
+    /**
+     * Persists the Stripe customer id for a user right after creating it (before
+     * Checkout). Only writes when the column is null so we never replace an
+     * already-linked customer.
+     */
+    public void setStripeCustomerId(UUID userId, String customerId) {
+        getOrCreate(userId);
+        try (var c = ds.getConnection();
+             var s = c.prepareStatement(
+                 "update profiles set stripe_customer_id = ? where user_id = ? and stripe_customer_id is null")) {
+            s.setString(1, customerId);
+            s.setObject(2, userId);
+            s.executeUpdate();
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+    /** Reads the stored {@code stripe_customer_id}, or empty if the user never started checkout. */
+    public Optional<String> stripeCustomerId(UUID userId) {
+        try (var c = ds.getConnection();
+             var s = c.prepareStatement("select stripe_customer_id from profiles where user_id = ?")) {
+            s.setObject(1, userId);
+            try (var rs = s.executeQuery()) {
+                if (!rs.next()) return Optional.empty();
+                String v = rs.getString(1);
+                return (v == null || v.isBlank()) ? Optional.empty() : Optional.of(v);
+            }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+    /** Lookup used by the Stripe webhook to map a {@code customer} id back to our user. */
+    public Optional<UUID> byStripeCustomerId(String customerId) {
+        try (var c = ds.getConnection();
+             var s = c.prepareStatement("select user_id from profiles where stripe_customer_id = ?")) {
+            s.setString(1, customerId);
+            try (var rs = s.executeQuery()) {
+                return rs.next() ? Optional.of((UUID) rs.getObject(1)) : Optional.empty();
+            }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+    /**
+     * Applies the result of a Stripe subscription event. {@code status} maps directly
+     * from Stripe ({@code active}, {@code trialing}, {@code past_due}, {@code canceled},
+     * {@code unpaid}, ...). is_pro is true while the subscription grants access — i.e.
+     * active or trialing.
+     */
+    public void applySubscriptionEvent(UUID userId, String stripeCustomerId,
+                                       String stripeSubscriptionId, String status,
+                                       OffsetDateTime proUntil) {
+        boolean isPro = "active".equals(status) || "trialing".equals(status);
         var sql = """
             update profiles
                set is_pro                 = ?,
                    stripe_customer_id     = coalesce(?, stripe_customer_id),
-                   stripe_subscription_id = ?,
-                   subscription_status    = ?,
-                   pro_until              = ?
+                   stripe_subscription_id = coalesce(?, stripe_subscription_id),
+                   subscription_status    = coalesce(?, subscription_status),
+                   pro_until              = coalesce(?, pro_until)
              where user_id = ?""";
         try (var c = ds.getConnection();
              var s = c.prepareStatement(sql)) {
@@ -97,6 +143,26 @@ public class ProfileRepository {
             if (proUntil == null) s.setNull(5, Types.TIMESTAMP_WITH_TIMEZONE);
             else s.setTimestamp(5, Timestamp.from(proUntil.toInstant()));
             s.setObject(6, userId);
+            s.executeUpdate();
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+    /**
+     * Subscription terminated by Stripe (canceled, payment failure past grace period).
+     * Clears Pro access and stamps the final status. Keeps the customer id around so a
+     * future re-subscribe re-uses the same Stripe customer.
+     */
+    public void clearSubscription(UUID userId, String status) {
+        var sql = """
+            update profiles
+               set is_pro                 = false,
+                   stripe_subscription_id = null,
+                   subscription_status    = ?
+             where user_id = ?""";
+        try (var c = ds.getConnection();
+             var s = c.prepareStatement(sql)) {
+            s.setString(1, status);
+            s.setObject(2, userId);
             s.executeUpdate();
         } catch (SQLException e) { throw new RuntimeException(e); }
     }

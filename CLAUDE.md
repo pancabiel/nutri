@@ -61,6 +61,12 @@ Anthropic model and token budget live in `application.properties`. Models are sp
 - `anthropic.model.vision` (default `claude-sonnet-4-6`) — used by `/analyze-meal-image` and `/scan-nutrition-label`.
 - `anthropic.max-tokens` — output cap shared by all calls.
 
+Stripe billing (Sprint 2): set these in the backend env (see `backend/.env.example`):
+- `STRIPE_SECRET_KEY` — `sk_test_...` or `sk_live_...`. Empty disables `/billing/*`.
+- `STRIPE_WEBHOOK_SECRET` — `whsec_...` from dashboard → Developers → Webhooks → [endpoint]. Required for `/billing/webhook` to accept anything.
+- `STRIPE_PRICE_MONTHLY` / `STRIPE_PRICE_YEARLY` — `price_...` IDs created in the Stripe dashboard for the "Nutri Pro" product.
+- `APP_FRONTEND_URL` — base URL used to build Checkout success/cancel and Portal return URLs.
+
 ## Architecture
 
 ### Backend layering (`com.nutri.*`)
@@ -68,10 +74,13 @@ Anthropic model and token budget live in `application.properties`. Models are sp
 ```
 auth/        CurrentUser (@RequestScoped) + JwtValidator (HS256 manual verification)
 resource/    JAX-RS endpoints (ChatResource, MealResource, ProdutoResource, ComidaResource,
-             AnalyzeResource, ProfileResource, AccountResource) + AuthFilter (ContainerRequestFilter)
+             AnalyzeResource, ProfileResource, AccountResource, BillingResource, CronResource)
+             + AuthFilter (ContainerRequestFilter) + exception mappers
 service/     ChatService — orchestrates AI + repos, reads CurrentUser
 ai/          AiService (prompts + JSON extraction) + AnthropicClient (MicroProfile RestClient)
              + Pricing (per-model USD/1M-token rates, computes micro-USD per call)
+billing/     StripeClient (raw HTTP — no Stripe SDK, native-image friendly; HMAC-SHA256
+             webhook verification) + BillingService (Checkout, Portal, webhook dispatch)
 repository/  Plain JDBC via Agroal datasource (no ORM, no Panache); every method takes userId.
              Includes UsageRepository for metering (insert event, lifetime/window counts,
              per-user and global cost sums for caps + kill switch).
@@ -81,7 +90,7 @@ model/       Record-based DTOs (Produto, Comida, MealDay + nested MealItem/Secti
 Key things to know when working here:
 
 - **Multi-tenant by user_id.** Every row in `produtos`, `comidas`, `meal_days` (and their children via FK chains) is owned by a `user_id` referencing `auth.users`. Every repository method takes `UUID userId` as the first parameter and includes `where user_id = ?` in every query. RLS policies enforce the same at the DB layer as a second line of defense. The current user is extracted from the Supabase JWT by `AuthFilter` and exposed via the `@RequestScoped CurrentUser` bean.
-- **AuthFilter rejects everything without a valid `Authorization: Bearer <jwt>`** except OPTIONS preflight, `q/health*` endpoints, and `cron/*` paths (which validate `X-Cron-Secret` inside the handler). The JWT is verified manually by `JwtValidator`, which supports both **ES256** (default, asymmetric "JWT Signing Keys" — fetched from the project's JWKS endpoint and cached in-memory, with on-demand refresh when an unknown `kid` shows up) and **HS256** (legacy symmetric secret). No external JWT library — just `java.security` + `javax.crypto` so it works clean in native image. Issuer, expiry, and `sub` (must be a UUID) are checked for both algorithms.
+- **AuthFilter rejects everything without a valid `Authorization: Bearer <jwt>`** except OPTIONS preflight, `q/health*` endpoints, `billing/webhook` (Stripe-signed; verified inside the handler) and `cron/*` paths (which validate `X-Cron-Secret` inside the handler). The JWT is verified manually by `JwtValidator`, which supports both **ES256** (default, asymmetric "JWT Signing Keys" — fetched from the project's JWKS endpoint and cached in-memory, with on-demand refresh when an unknown `kid` shows up) and **HS256** (legacy symmetric secret). No external JWT library — just `java.security` + `javax.crypto` so it works clean in native image. Issuer, expiry, and `sub` (must be a UUID) are checked for both algorithms.
 - **No ORM.** Repositories use raw JDBC against `AgroalDataSource`. New endpoints that need persistence should follow the same pattern (look at `MealRepository` for the canonical example, including the meal-day lazy-create flow).
 - **`matched_id` from the AI must be validated.** When inserting a `meal_item` with a `produto_id` or `comida_id` coming from the chat parser, `MealRepository` checks that the UUID actually belongs to the current user (via `validateOwnedProduto` / `validateOwnedComida`). If not owned, the ID is silently dropped to `null` (item kept as free-text). This defends against prompt injection forging cross-user IDs.
 - **PgBouncer transaction pooling** is in use → `application.properties` sets `prepareThreshold=0` to disable JDBC server-side prepared-statement caching. Don't re-enable it; you'll get `prepared statement S_1 already exists` under load.
@@ -121,6 +130,14 @@ Key things to know when working here:
 - **Kill switch → HTTP 503** (`KillSwitchTrippedException`). Single-row `kill_switch` table — auto-tripped by `POST /cron/kill-switch-check` when rolling-24h Claude spend exceeds `KILLSWITCH_DAILY_USD` (default `50`). **Auto-reset doesn't exist** — clear manually with `update kill_switch set tripped = false where id = 'global';`.
 - **`/cron/*` bypasses `AuthFilter`** and authenticates via the `X-Cron-Secret` header (constant-time compare; fails closed if unset). Invoked by an EventBridge schedule — wiring commands are in `CronResource`'s javadoc. New cron endpoints belong under `CronResource` so they inherit this auth.
 
+### Billing (Stripe)
+
+- **No Stripe SDK** — `StripeClient` calls the REST API directly with `java.net.http.HttpClient` and form-encoded bodies. Reasons: the official SDK is GSON+reflection-heavy and painful to make native-image friendly, and our surface is only three calls (Customer create, Checkout Session create, Billing Portal Session create). JSON responses are parsed with a small ad-hoc string extractor (`extractField`) — fine for `{id, url}` shapes. Don't grow this; for richer responses switch to Jackson.
+- **`/billing/webhook` bypasses `AuthFilter`** and authenticates via the `Stripe-Signature` header. `StripeClient.verifySignature` does HMAC-SHA256 over `<timestamp>.<rawBody>` and enforces Stripe's documented 5-minute timestamp tolerance. The signed-payload check is what stops anyone from POSTing fake "is_pro=true" events. Always returns 200 on a valid signature even if we ignore the event type — Stripe retries 5xx for 3 days, which is noisy.
+- **Events handled**: `checkout.session.completed` (initial activation, persists customer+sub IDs, flips `is_pro`), `customer.subscription.created/updated` (refreshes status + `pro_until` from `current_period_end`), `customer.subscription.deleted` (clears `is_pro`). `invoice.payment_failed` is logged but no-op — Stripe Smart Retries handles dunning.
+- **User mapping** uses `profiles.stripe_customer_id`. Created lazily on first checkout (`BillingService.ensureCustomer`) and persisted via `setStripeCustomerId` so subsequent webhooks and Portal sessions resolve cleanly. `client_reference_id` on the Checkout Session also carries the user UUID as a belt-and-suspenders mapping for the very first event.
+- **Frontend trigger paths**: any 402 from any API call dispatches `nutri:cap-exceeded` (see `frontend/src/lib/api.js`), which `App.jsx` listens for and pops `UpgradeModal`. Explicit "Assinar" CTAs dispatch `nutri:open-upgrade`. Successful Checkout returns to `?billing=success` and `App.jsx` refreshes the profile so the UI flips immediately (the webhook usually fires first).
+
 ## Platform notes
 
 - Primary OS for dev is Windows 11 / PowerShell. The npm scripts and Quarkus dev mode all work from PowerShell. PowerShell-specific: use `$env:VAR`, no `&&` chaining (use `;` or `if ($?) { }`), no `2>&1` on native exes.
@@ -137,9 +154,9 @@ Key things to know when working here:
 
 The project is mid-way through a single-tenant → multi-tenant SaaS conversion. Roughly:
 
-- **Sprint 0 (foundation) — done in code.** Multi-tenant schema + RLS, JWT auth, Profile/Account endpoints, frontend login/onboarding/settings, LGPD delete.
-- **Sprint 1 (cost + AI safety) — partial.** Done: `usage_events` + per-call metering, per-call-type model selection, prompt caching, numeric clamps, defensive prompt lines, frontend image resize. **Not yet wired:** pre-call cap enforcement (return 402 before hitting Claude when the user is over their free-tier limit), nightly kill-switch cron that flips a global circuit breaker if global cost exceeds budget, frontend audit for `dangerouslySetInnerHTML`.
-- **Sprint 2 (billing) — not started.** Stripe Checkout + webhook to flip `profiles.is_pro`.
+- **Sprint 0 (foundation) — done in code.** Multi-tenant schema + RLS, JWT auth, Profile/Account endpoints, frontend login/onboarding/settings, LGPD delete. One manual item remains: a two-account isolation smoke test.
+- **Sprint 1 (cost + AI safety) — done.** `usage_events` + per-call metering, per-call-type model selection, prompt caching, numeric clamps, defensive prompt lines, frontend image resize, pre-call cap enforcement (402), nightly kill-switch cron (503). Remaining: Anthropic console spend alerts (manual).
+- **Sprint 2 (billing) — code done, dashboard setup pending.** `BillingResource` + `BillingService` + `StripeClient` (raw HTTP, native-friendly), webhook signature verification (`StripeClientTest` covers tamper / replay / rotation), `UpgradeModal` on 402 + Settings Pro panel + portal redirect. Pending: create Stripe account/product/prices in dashboard, configure GitHub Secrets (`STRIPE_*`), point Stripe webhook at `<api>/billing/webhook` and copy the `whsec_...` to env.
 - **Sprint 3 (growth) — not started.** Landing page, email drip, referral.
 
 When adding new endpoints or call paths during Sprint 1+: any new Claude call must go through `AiService.call(kind, …)` (so it's metered), and any new user-data table must include `user_id` + RLS + `where user_id = ?` in the repository, matching the patterns above.

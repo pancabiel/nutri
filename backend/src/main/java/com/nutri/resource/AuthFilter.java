@@ -26,7 +26,10 @@ import java.util.Set;
 public class AuthFilter implements ContainerRequestFilter {
 
     private static final Logger LOG = Logger.getLogger(AuthFilter.class);
-    private static final Set<String> PUBLIC_PATHS = Set.of("q/health", "q/health/ready", "q/health/live");
+    private static final Set<String> PUBLIC_PATHS = Set.of(
+            "q/health", "q/health/ready", "q/health/live",
+            // Stripe webhook authenticates via signed payload (Stripe-Signature header), not a Supabase JWT.
+            "billing/webhook");
     // Cron endpoints authenticate via X-Cron-Secret inside the handler, not via Supabase JWT.
     private static final String CRON_PREFIX = "cron/";
 
@@ -55,7 +58,10 @@ public class AuthFilter implements ContainerRequestFilter {
     @Override
     public void filter(ContainerRequestContext ctx) {
         if ("OPTIONS".equalsIgnoreCase(ctx.getMethod())) return;
+        // Normalize: strip leading slash so matches are stable across runtimes
+        // (quarkus-amazon-lambda-http in dev mode hands back a path with leading slash).
         String path = ctx.getUriInfo().getPath();
+        if (path.startsWith("/")) path = path.substring(1);
         if (PUBLIC_PATHS.contains(path)) return;
         if (path.startsWith(CRON_PREFIX)) return;
 

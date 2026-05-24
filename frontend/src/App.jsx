@@ -9,10 +9,11 @@ import ComidasScreen from "./screens/ComidasScreen.jsx";
 import LoginScreen from "./screens/LoginScreen.jsx";
 import OnboardingScreen from "./screens/OnboardingScreen.jsx";
 import SettingsScreen from "./screens/SettingsScreen.jsx";
+import UpgradeModal from "./components/UpgradeModal.jsx";
 import { todayISO, api } from "./lib/api.js";
 import { supabase } from "./lib/supabase.js";
 
-function Shell({ onOpenSettings }) {
+function Shell({ onOpenSettings, isPro }) {
   const { toast, refreshProdutos, refreshComidas } = useStore();
   const [screen, setScreen] = useState("chat");
   const [date, setDate] = useState(todayISO());
@@ -30,9 +31,23 @@ function Shell({ onOpenSettings }) {
     <div className="h-[100dvh] w-full flex flex-col bg-white relative overflow-hidden">
       <header className="shrink-0 flex items-center justify-between px-4 py-2 border-b border-slate-100">
         <span className="text-sm font-semibold text-slate-700">Nutri</span>
-        <button onClick={onOpenSettings} className="text-slate-500 p-1">
-          <Icon name="cog" className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          {isPro ? (
+            <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full inline-flex items-center gap-1">
+              <Icon name="crown" className="w-3 h-3" /> Pro
+            </span>
+          ) : (
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent("nutri:open-upgrade"))}
+              className="text-[10px] uppercase tracking-wider font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-full inline-flex items-center gap-1"
+            >
+              <Icon name="lock" className="w-3 h-3" /> Free
+            </button>
+          )}
+          <button onClick={onOpenSettings} className="text-slate-500 p-1">
+            <Icon name="cog" className="w-5 h-5" />
+          </button>
+        </div>
       </header>
       <div className="flex-1 overflow-hidden relative">
         <div className={screen === "chat" ? "absolute inset-0" : "hidden"}>
@@ -77,6 +92,34 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  // Upgrade modal — `null` hidden, `{}` shown without context, `{cap: ...}` shown after 402.
+  const [upgrade, setUpgrade] = useState(null);
+
+  useEffect(() => {
+    function onCap(e) { setUpgrade({ cap: e.detail }); }
+    function onOpen(e) { setUpgrade({ cap: e.detail || null }); }
+    window.addEventListener("nutri:cap-exceeded", onCap);
+    window.addEventListener("nutri:open-upgrade", onOpen);
+    return () => {
+      window.removeEventListener("nutri:cap-exceeded", onCap);
+      window.removeEventListener("nutri:open-upgrade", onOpen);
+    };
+  }, []);
+
+  // Stripe Checkout return — refresh profile so is_pro flips immediately (webhook
+  // already fired by the time the user is redirected back) and strip the query.
+  useEffect(() => {
+    if (!session) return;
+    const params = new URLSearchParams(window.location.search);
+    const billing = params.get("billing");
+    if (!billing) return;
+    if (billing === "success" || billing === "portal-return") {
+      api.profile.get().then(setProfile).catch(() => {});
+    }
+    params.delete("billing");
+    const search = params.toString();
+    window.history.replaceState({}, "", window.location.pathname + (search ? "?" + search : ""));
+  }, [session]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -115,8 +158,9 @@ export default function App() {
   return (
     <StoreProvider>
       {showSettings
-        ? <SettingsScreen onClose={() => setShowSettings(false)} />
-        : <Shell onOpenSettings={() => setShowSettings(true)} />}
+        ? <SettingsScreen onClose={() => setShowSettings(false)} profile={profile} onProfileRefresh={() => api.profile.get().then(setProfile)} />
+        : <Shell onOpenSettings={() => setShowSettings(true)} isPro={!!profile?.isPro} />}
+      {upgrade && <UpgradeModal cap={upgrade.cap} onClose={() => setUpgrade(null)} />}
     </StoreProvider>
   );
 }
