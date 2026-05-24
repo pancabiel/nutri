@@ -121,10 +121,22 @@ public class ProfileRepository {
      * from Stripe ({@code active}, {@code trialing}, {@code past_due}, {@code canceled},
      * {@code unpaid}, ...). is_pro is true while the subscription grants access — i.e.
      * active or trialing.
+     *
+     * <p>{@code eventCreatedAt} is the event's {@code created} timestamp. Stripe does
+     * not guarantee delivery order, so the UPDATE is gated on
+     * {@code stripe_event_at is null or stripe_event_at <= ?} to drop stale events
+     * (e.g. a late {@code subscription.updated active} arriving after a
+     * {@code subscription.deleted}). Returns true if the row was actually updated.
+     *
+     * <p>Calls {@link #getOrCreate(UUID)} first so a webhook can land even if the
+     * {@code profiles_create_on_signup} trigger silently failed (CLAUDE.md describes
+     * that trigger as best-effort).
      */
-    public void applySubscriptionEvent(UUID userId, String stripeCustomerId,
-                                       String stripeSubscriptionId, String status,
-                                       OffsetDateTime proUntil) {
+    public boolean applySubscriptionEvent(UUID userId, String stripeCustomerId,
+                                          String stripeSubscriptionId, String status,
+                                          OffsetDateTime proUntil,
+                                          OffsetDateTime eventCreatedAt) {
+        getOrCreate(userId);
         boolean isPro = "active".equals(status) || "trialing".equals(status);
         var sql = """
             update profiles
@@ -132,8 +144,10 @@ public class ProfileRepository {
                    stripe_customer_id     = coalesce(?, stripe_customer_id),
                    stripe_subscription_id = coalesce(?, stripe_subscription_id),
                    subscription_status    = coalesce(?, subscription_status),
-                   pro_until              = coalesce(?, pro_until)
-             where user_id = ?""";
+                   pro_until              = coalesce(?, pro_until),
+                   stripe_event_at        = coalesce(?, stripe_event_at)
+             where user_id = ?
+               and (stripe_event_at is null or ? is null or stripe_event_at <= ?)""";
         try (var c = ds.getConnection();
              var s = c.prepareStatement(sql)) {
             s.setBoolean(1, isPro);
@@ -142,28 +156,58 @@ public class ProfileRepository {
             s.setString(4, status);
             if (proUntil == null) s.setNull(5, Types.TIMESTAMP_WITH_TIMEZONE);
             else s.setTimestamp(5, Timestamp.from(proUntil.toInstant()));
-            s.setObject(6, userId);
-            s.executeUpdate();
+            if (eventCreatedAt == null) {
+                s.setNull(6, Types.TIMESTAMP_WITH_TIMEZONE);
+                s.setNull(8, Types.TIMESTAMP_WITH_TIMEZONE);
+                s.setNull(9, Types.TIMESTAMP_WITH_TIMEZONE);
+            } else {
+                Timestamp ts = Timestamp.from(eventCreatedAt.toInstant());
+                s.setTimestamp(6, ts);
+                s.setTimestamp(8, ts);
+                s.setTimestamp(9, ts);
+            }
+            s.setObject(7, userId);
+            return s.executeUpdate() > 0;
         } catch (SQLException e) { throw new RuntimeException(e); }
     }
 
     /**
      * Subscription terminated by Stripe (canceled, payment failure past grace period).
      * Clears Pro access and stamps the final status. Keeps the customer id around so a
-     * future re-subscribe re-uses the same Stripe customer.
+     * future re-subscribe re-uses the same Stripe customer. Clears {@code pro_until}
+     * since the prior period-end is no longer meaningful once the subscription is
+     * fully terminated.
+     *
+     * <p>Same out-of-order gate as {@link #applySubscriptionEvent}: a stale
+     * {@code .deleted} arriving after a fresh {@code .updated} is ignored. Returns
+     * true if the row was actually updated.
      */
-    public void clearSubscription(UUID userId, String status) {
+    public boolean clearSubscription(UUID userId, String status, OffsetDateTime eventCreatedAt) {
+        getOrCreate(userId);
         var sql = """
             update profiles
                set is_pro                 = false,
                    stripe_subscription_id = null,
-                   subscription_status    = ?
-             where user_id = ?""";
+                   subscription_status    = ?,
+                   pro_until              = null,
+                   stripe_event_at        = coalesce(?, stripe_event_at)
+             where user_id = ?
+               and (stripe_event_at is null or ? is null or stripe_event_at <= ?)""";
         try (var c = ds.getConnection();
              var s = c.prepareStatement(sql)) {
             s.setString(1, status);
-            s.setObject(2, userId);
-            s.executeUpdate();
+            if (eventCreatedAt == null) {
+                s.setNull(2, Types.TIMESTAMP_WITH_TIMEZONE);
+                s.setNull(4, Types.TIMESTAMP_WITH_TIMEZONE);
+                s.setNull(5, Types.TIMESTAMP_WITH_TIMEZONE);
+            } else {
+                Timestamp ts = Timestamp.from(eventCreatedAt.toInstant());
+                s.setTimestamp(2, ts);
+                s.setTimestamp(4, ts);
+                s.setTimestamp(5, ts);
+            }
+            s.setObject(3, userId);
+            return s.executeUpdate() > 0;
         } catch (SQLException e) { throw new RuntimeException(e); }
     }
 

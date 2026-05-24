@@ -82,7 +82,7 @@ export const api = {
   // billing (Stripe)
   billing: {
     checkout: (plan)          => http(`/billing/checkout`, { method: "POST", body: JSON.stringify({ plan }) }),
-    portal:   ()              => http(`/billing/portal`),
+    portal:   ()              => http(`/billing/portal`, { method: "POST" }),
   },
   // ai
   chat:        (msg, date, section) => http(`/chat-log`, { method: "POST", body: JSON.stringify({ message: msg, date, section }) }),

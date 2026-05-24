@@ -106,19 +106,38 @@ export default function App() {
     };
   }, []);
 
-  // Stripe Checkout return — refresh profile so is_pro flips immediately (webhook
-  // already fired by the time the user is redirected back) and strip the query.
+  // Stripe Checkout return — refresh profile so is_pro flips immediately and strip the
+  // query. The webhook usually lands before the user-facing redirect, but not always;
+  // on ?billing=success we poll the profile a few times until is_pro is true so the
+  // Pro badge doesn't lag a page reload behind reality.
   useEffect(() => {
     if (!session) return;
     const params = new URLSearchParams(window.location.search);
     const billing = params.get("billing");
     if (!billing) return;
-    if (billing === "success" || billing === "portal-return") {
-      api.profile.get().then(setProfile).catch(() => {});
-    }
     params.delete("billing");
     const search = params.toString();
     window.history.replaceState({}, "", window.location.pathname + (search ? "?" + search : ""));
+
+    if (billing === "portal-return") {
+      api.profile.get().then(setProfile).catch(() => {});
+      return;
+    }
+    if (billing === "success") {
+      let cancelled = false;
+      (async () => {
+        for (let i = 0; i < 4 && !cancelled; i++) {
+          try {
+            const p = await api.profile.get();
+            if (cancelled) return;
+            setProfile(p);
+            if (p?.isPro) return;
+          } catch {}
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+      })();
+      return () => { cancelled = true; };
+    }
   }, [session]);
 
   useEffect(() => {
@@ -158,7 +177,7 @@ export default function App() {
   return (
     <StoreProvider>
       {showSettings
-        ? <SettingsScreen onClose={() => setShowSettings(false)} profile={profile} onProfileRefresh={() => api.profile.get().then(setProfile)} />
+        ? <SettingsScreen onClose={() => setShowSettings(false)} profile={profile} />
         : <Shell onOpenSettings={() => setShowSettings(true)} isPro={!!profile?.isPro} />}
       {upgrade && <UpgradeModal cap={upgrade.cap} onClose={() => setUpgrade(null)} />}
     </StoreProvider>

@@ -98,13 +98,14 @@ public class BillingService {
             JsonNode event = MAPPER.readTree(payload);
             String type = event.path("type").asText();
             JsonNode obj = event.path("data").path("object");
+            OffsetDateTime eventAt = epochSecondsToOffset(event.path("created"));
             LOG.infof("stripe webhook: type=%s id=%s", type, event.path("id").asText());
 
             switch (type) {
-                case "checkout.session.completed" -> handleCheckoutCompleted(obj);
+                case "checkout.session.completed" -> handleCheckoutCompleted(obj, eventAt);
                 case "customer.subscription.created",
-                     "customer.subscription.updated" -> handleSubscriptionUpsert(obj);
-                case "customer.subscription.deleted" -> handleSubscriptionDeleted(obj);
+                     "customer.subscription.updated" -> handleSubscriptionUpsert(obj, eventAt);
+                case "customer.subscription.deleted" -> handleSubscriptionDeleted(obj, eventAt);
                 case "invoice.payment_failed" -> LOG.infof(
                         "invoice.payment_failed for customer=%s — Stripe Smart Retries will retry",
                         obj.path("customer").asText());
@@ -117,7 +118,7 @@ public class BillingService {
         return true;
     }
 
-    private void handleCheckoutCompleted(JsonNode session) {
+    private void handleCheckoutCompleted(JsonNode session, OffsetDateTime eventAt) {
         String customerId     = session.path("customer").asText(null);
         String subscriptionId = session.path("subscription").asText(null);
         String clientRefId    = session.path("client_reference_id").asText(null);
@@ -133,10 +134,13 @@ public class BillingService {
             return;
         }
         // Initial activation; pro_until gets filled by the follow-up subscription event.
-        profiles.applySubscriptionEvent(userId, customerId, subscriptionId, "active", null);
+        boolean applied = profiles.applySubscriptionEvent(userId, customerId, subscriptionId, "active", null, eventAt);
+        if (!applied) {
+            LOG.infof("checkout.session.completed superseded by newer event (user=%s)", userId);
+        }
     }
 
-    private void handleSubscriptionUpsert(JsonNode sub) {
+    private void handleSubscriptionUpsert(JsonNode sub, OffsetDateTime eventAt) {
         String customerId = sub.path("customer").asText(null);
         String subId      = sub.path("id").asText(null);
         String status     = sub.path("status").asText(null);
@@ -147,17 +151,24 @@ public class BillingService {
             LOG.warnf("subscription event for unknown customer=%s (sub=%s) — ignoring", customerId, subId);
             return;
         }
-        profiles.applySubscriptionEvent(userId, customerId, subId, status, periodEnd);
+        boolean applied = profiles.applySubscriptionEvent(userId, customerId, subId, status, periodEnd, eventAt);
+        if (!applied) {
+            LOG.infof("subscription event for user=%s superseded by newer event (sub=%s status=%s)",
+                    userId, subId, status);
+        }
     }
 
-    private void handleSubscriptionDeleted(JsonNode sub) {
+    private void handleSubscriptionDeleted(JsonNode sub, OffsetDateTime eventAt) {
         String customerId = sub.path("customer").asText(null);
         UUID userId = resolveUserId(customerId);
         if (userId == null) {
             LOG.warnf("subscription.deleted for unknown customer=%s — ignoring", customerId);
             return;
         }
-        profiles.clearSubscription(userId, "canceled");
+        boolean applied = profiles.clearSubscription(userId, "canceled", eventAt);
+        if (!applied) {
+            LOG.infof("subscription.deleted for user=%s superseded by newer event", userId);
+        }
     }
 
     private UUID resolveUserId(String customerId) {

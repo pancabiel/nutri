@@ -19,8 +19,10 @@ import java.util.Map;
  *   <li>{@code POST /billing/checkout} — auth'd; body {@code {"plan":"monthly"|"yearly"}};
  *       returns {@code {"url":"https://checkout.stripe.com/..."}} for the frontend to
  *       {@code window.location.assign(url)}.</li>
- *   <li>{@code GET /billing/portal} — auth'd; returns {@code {"url":...}} for the Stripe
- *       Customer Portal (cancel, swap card, see invoices).</li>
+ *   <li>{@code POST /billing/portal} — auth'd; returns {@code {"url":...}} for the Stripe
+ *       Customer Portal (cancel, swap card, see invoices). POST because the call
+ *       creates a new Portal session in Stripe — a GET could be triggered by link
+ *       prefetchers / preloaders.</li>
  *   <li>{@code POST /billing/webhook} — NOT auth'd via JWT (bypassed in {@link AuthFilter});
  *       authenticates via the {@code Stripe-Signature} header. Always returns 200 to a
  *       valid signature even if we choose not to act on the event — Stripe retries 5xx
@@ -57,7 +59,7 @@ public class BillingResource {
         }
     }
 
-    @GET
+    @POST
     @Path("portal")
     public Response portal() {
         try {

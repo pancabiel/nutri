@@ -3,7 +3,7 @@ import Icon from "../components/Icon.jsx";
 import { api } from "../lib/api.js";
 import { supabase } from "../lib/supabase.js";
 
-export default function SettingsScreen({ onClose, profile: profileProp, onProfileRefresh }) {
+export default function SettingsScreen({ onClose, profile: profileProp }) {
   const [profile, setProfile] = useState(profileProp ?? null);
   const [email, setEmail] = useState("");
   const [confirm, setConfirm] = useState("");
