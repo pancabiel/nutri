@@ -1,6 +1,7 @@
 package com.nutri.service;
 
 import com.nutri.ai.AiService;
+import com.nutri.auth.CurrentUser;
 import com.nutri.model.Comida;
 import com.nutri.model.MealDay;
 import com.nutri.model.Produto;
@@ -31,10 +32,12 @@ public class ChatService {
     @Inject ProdutoRepository produtos;
     @Inject ComidaRepository comidas;
     @Inject MealRepository meals;
+    @Inject CurrentUser user;
 
     public ChatResult log(String message, LocalDate date, String section) {
-        var prods   = produtos.all();
-        var coms    = comidas.all();
+        var uid     = user.userId();
+        var prods   = produtos.all(uid);
+        var coms    = comidas.all(uid);
         var parsed  = ai.parseChat(message, prods, coms);
         var items   = fillComidaMacros(parsed.items(), prods, coms);
 
@@ -58,23 +61,24 @@ public class ChatService {
             sec = defaultSection(LocalTime.now(ZONE));
         }
 
-        return persist(items, theDate, sec);
+        return persist(uid, items, theDate, sec);
     }
 
     /** Persist already-parsed items (e.g. from a meal-photo analysis) to today's meal day. */
     public ChatResult saveParsed(List<AiService.ParsedItem> items, LocalDate date, String section) {
+        var uid = user.userId();
         var theDate = date != null ? date : LocalDate.now(ZONE);
         var sec = (section != null && !section.isBlank()) ? section : defaultSection(LocalTime.now(ZONE));
-        return persist(items, theDate, sec);
+        return persist(uid, items, theDate, sec);
     }
 
-    private ChatResult persist(List<AiService.ParsedItem> items, LocalDate theDate, String sec) {
-        var sectionId = meals.resolveSection(theDate, sec);
+    private ChatResult persist(UUID uid, List<AiService.ParsedItem> items, LocalDate theDate, String sec) {
+        var sectionId = meals.resolveSection(uid, theDate, sec);
         var saved = new ArrayList<MealDay.MealItem>();
         for (var p : items) {
             boolean isProduto = "produto".equalsIgnoreCase(p.type());
             double qty = isProduto ? p.estimated_grams() : p.quantity();
-            saved.add(meals.addItem(sectionId, new MealDay.MealItem(
+            saved.add(meals.addItem(uid, sectionId, new MealDay.MealItem(
                 null,
                 isProduto ? parseUuid(p.matched_id()) : null,
                 "comida".equalsIgnoreCase(p.type()) ? parseUuid(p.matched_id()) : null,

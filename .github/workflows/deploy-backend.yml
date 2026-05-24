@@ -40,8 +40,6 @@ jobs:
 
       - name: Build native image
         run: mvn package -Pnative -DskipTests
-        env:
-          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
 
       - name: Deploy
         run: |
@@ -50,4 +48,7 @@ jobs:
             "SupabaseUrl=${{ secrets.SUPABASE_DB_URL }}" \
             "SupabaseUser=${{ secrets.SUPABASE_DB_USER }}" \
             "SupabasePassword=${{ secrets.SUPABASE_DB_PASSWORD }}" \
-            "AppPassword=${{ secrets.APP_PASSWORD }}"
+            "SupabaseJwtIssuer=${{ secrets.SUPABASE_JWT_ISSUER }}" \
+            "CorsOrigins=${{ secrets.CORS_ORIGINS }}" \
+            "CronSecret=${{ secrets.CRON_SECRET }}" \
+            "KillswitchDailyUsd=${{ vars.KILLSWITCH_DAILY_USD || secrets.KILLSWITCH_DAILY_USD || '50' }}"
