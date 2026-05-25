@@ -20,19 +20,19 @@ export default function CalendarScreen({ onPickDay }) {
 
   return (
     <div className="flex flex-col h-full bg-white">
-      <div className="px-5 pt-[max(env(safe-area-inset-top),20px)] pb-4 shrink-0">
+      <div className="w-full max-w-xl mx-auto px-5 pt-5 pb-4 shrink-0">
         <h1 className="text-[22px] font-bold text-slate-900">Agenda</h1>
         <p className="text-sm text-slate-500">Toque num dia para registrar refeições.</p>
       </div>
-      <div className="px-4 pb-2 flex items-center justify-between shrink-0">
+      <div className="w-full max-w-xl mx-auto px-4 pb-2 flex items-center justify-between shrink-0">
         <button onClick={() => setMonth(m => ({ y: m.m === 0 ? m.y - 1 : m.y, m: m.m === 0 ? 11 : m.m - 1 }))} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center"><Icon name="chevronL" className="w-5 h-5"/></button>
         <div className="font-semibold capitalize text-slate-800">{monthName}</div>
         <button onClick={() => setMonth(m => ({ y: m.m === 11 ? m.y + 1 : m.y, m: m.m === 11 ? 0 : m.m + 1 }))} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center"><Icon name="chevronR" className="w-5 h-5"/></button>
       </div>
-      <div className="px-4 grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-slate-400 shrink-0">
+      <div className="w-full max-w-xl mx-auto px-4 grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-slate-400 shrink-0">
         {["D","S","T","Q","Q","S","S"].map((d,i) => <div key={i} className="py-1">{d}</div>)}
       </div>
-      <div className="flex-1 overflow-y-auto px-4 pb-4 scroll-hide">
+      <div className="flex-1 overflow-y-auto px-4 pb-4 scroll-hide w-full max-w-xl mx-auto">
         <div className="grid grid-cols-7 gap-1">
           {cells.map((d, i) => {
             if (!d) return <div key={i} />;

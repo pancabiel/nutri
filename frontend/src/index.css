@@ -3,13 +3,24 @@
 @tailwind utilities;
 
 html, body, #root { height: 100%; }
+html, body {
+  /* iOS PWA: stop the rubber-band scroll that lets the user drag the footer up */
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
+}
 body {
   margin: 0;
   background: #f8fafc;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
   color: #0f172a;
   -webkit-font-smoothing: antialiased;
+  /* Lock body so internal scrollers (chat list, day view, etc.) handle scroll,
+     not the page itself — prevents the standalone PWA from scrolling the chrome. */
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
 }
+#root { overflow: hidden; }
 .scroll-hide::-webkit-scrollbar { display: none; }
 .scroll-hide { scrollbar-width: none; }
 .fade-in { animation: fade 220ms ease-out; }

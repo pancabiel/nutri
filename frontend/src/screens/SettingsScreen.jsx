@@ -3,9 +3,9 @@ import Icon from "../components/Icon.jsx";
 import { api } from "../lib/api.js";
 import { supabase } from "../lib/supabase.js";
 
-export default function SettingsScreen({ onClose, profile: profileProp }) {
+export default function SettingsScreen({ onClose, profile: profileProp, email: emailProp = "" }) {
   const [profile, setProfile] = useState(profileProp ?? null);
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(emailProp);
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -15,13 +15,19 @@ export default function SettingsScreen({ onClose, profile: profileProp }) {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.auth.getUser();
-      setEmail(data.user?.email ?? "");
+      // Fall back to fetching the user only if the parent didn't have it ready.
+      if (!emailProp) {
+        const { data } = await supabase.auth.getUser();
+        setEmail(data.user?.email ?? "");
+      }
       if (!profileProp) {
         try { setProfile(await api.profile.get()); } catch {}
       }
     })();
   }, []);
+
+  // Keep email in sync if it arrives after first render.
+  useEffect(() => { if (emailProp) setEmail(emailProp); }, [emailProp]);
 
   // Keep local copy in sync if parent refreshes after Stripe return.
   useEffect(() => { if (profileProp) setProfile(profileProp); }, [profileProp]);
