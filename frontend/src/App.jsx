@@ -29,7 +29,7 @@ function Shell({ onOpenSettings, isPro }) {
 
   return (
     <div className="h-[100dvh] w-full flex flex-col bg-white relative overflow-hidden">
-      <header className="shrink-0 flex items-center justify-between px-4 py-2 border-b border-slate-100">
+      <header className="shrink-0 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),8px)] pb-2 border-b border-slate-100">
         <span className="text-sm font-semibold text-slate-700">Nutri</span>
         <div className="flex items-center gap-2">
           {isPro ? (
@@ -177,7 +177,7 @@ export default function App() {
   return (
     <StoreProvider>
       {showSettings
-        ? <SettingsScreen onClose={() => setShowSettings(false)} profile={profile} />
+        ? <SettingsScreen onClose={() => setShowSettings(false)} profile={profile} email={session?.user?.email ?? ""} />
         : <Shell onOpenSettings={() => setShowSettings(true)} isPro={!!profile?.isPro} />}
       {upgrade && <UpgradeModal cap={upgrade.cap} onClose={() => setUpgrade(null)} />}
     </StoreProvider>
