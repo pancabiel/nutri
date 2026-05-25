@@ -147,7 +147,7 @@ public class ProfileRepository {
                    pro_until              = coalesce(?, pro_until),
                    stripe_event_at        = coalesce(?, stripe_event_at)
              where user_id = ?
-               and (stripe_event_at is null or ? is null or stripe_event_at <= ?)""";
+               and (stripe_event_at is null or cast(? as timestamptz) is null or stripe_event_at <= cast(? as timestamptz))""";
         try (var c = ds.getConnection();
              var s = c.prepareStatement(sql)) {
             s.setBoolean(1, isPro);
@@ -192,7 +192,7 @@ public class ProfileRepository {
                    pro_until              = null,
                    stripe_event_at        = coalesce(?, stripe_event_at)
              where user_id = ?
-               and (stripe_event_at is null or ? is null or stripe_event_at <= ?)""";
+               and (stripe_event_at is null or cast(? as timestamptz) is null or stripe_event_at <= cast(? as timestamptz))""";
         try (var c = ds.getConnection();
              var s = c.prepareStatement(sql)) {
             s.setString(1, status);
