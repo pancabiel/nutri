@@ -56,4 +56,7 @@ jobs:
             "StripeWebhookSecret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
             "StripePriceMonthly=${{ vars.STRIPE_PRICE_MONTHLY || secrets.STRIPE_PRICE_MONTHLY }}" \
             "StripePriceYearly=${{ vars.STRIPE_PRICE_YEARLY || secrets.STRIPE_PRICE_YEARLY }}" \
-            "AppFrontendUrl=${{ vars.APP_FRONTEND_URL || 'https://nutri.pancabiel.workers.dev' }}"
+            "AppFrontendUrl=${{ vars.APP_FRONTEND_URL || 'https://nutri.pancabiel.workers.dev' }}" \
+            "VapidPublicKey=${{ secrets.VAPID_PUBLIC_KEY }}" \
+            "VapidPrivateKey=${{ secrets.VAPID_PRIVATE_KEY }}" \
+            "VapidSubject=${{ vars.VAPID_SUBJECT || 'mailto:pancabiel@gmail.com' }}"

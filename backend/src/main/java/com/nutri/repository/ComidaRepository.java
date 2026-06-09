@@ -18,7 +18,7 @@ public class ComidaRepository {
     public List<Comida> all(UUID userId) {
         var byId = new LinkedHashMap<UUID, ComidaBuilder>();
         var sql = """
-            select c.id, c.name, c.created_at,
+            select c.id, c.name, c.yield_grams, c.created_at,
                    cp.produto_id, cp.quantity_grams
               from comidas c
               left join comida_produtos cp on cp.comida_id = c.id
@@ -37,7 +37,7 @@ public class ComidaRepository {
     public List<Comida> search(UUID userId, String query, int limit) {
         var byId = new LinkedHashMap<UUID, ComidaBuilder>();
         var sql = """
-            select c.id, c.name, c.created_at,
+            select c.id, c.name, c.yield_grams, c.created_at,
                    cp.produto_id, cp.quantity_grams
               from comidas c
               left join comida_produtos cp on cp.comida_id = c.id
@@ -59,7 +59,7 @@ public class ComidaRepository {
     public Optional<Comida> byId(UUID userId, UUID id) {
         var byId = new LinkedHashMap<UUID, ComidaBuilder>();
         var sql = """
-            select c.id, c.name, c.created_at,
+            select c.id, c.name, c.yield_grams, c.created_at,
                    cp.produto_id, cp.quantity_grams
               from comidas c
               left join comida_produtos cp on cp.comida_id = c.id
@@ -80,10 +80,11 @@ public class ComidaRepository {
         try (var conn = ds.getConnection()) {
             conn.setAutoCommit(false);
             try (var s = conn.prepareStatement(
-                "insert into comidas (id, user_id, name, created_at) values (?, ?, ?, now())")) {
+                "insert into comidas (id, user_id, name, yield_grams, created_at) values (?, ?, ?, ?, now())")) {
                 s.setObject(1, id);
                 s.setObject(2, userId);
                 s.setString(3, c.name());
+                s.setObject(4, c.yieldGrams());
                 s.executeUpdate();
             }
             insertItems(conn, userId, id, c.items());
@@ -97,10 +98,11 @@ public class ComidaRepository {
             conn.setAutoCommit(false);
             int rows;
             try (var s = conn.prepareStatement(
-                "update comidas set name = ? where id = ? and user_id = ?")) {
+                "update comidas set name = ?, yield_grams = ? where id = ? and user_id = ?")) {
                 s.setString(1, c.name());
-                s.setObject(2, id);
-                s.setObject(3, userId);
+                s.setObject(2, c.yieldGrams());
+                s.setObject(3, id);
+                s.setObject(4, userId);
                 rows = s.executeUpdate();
             }
             if (rows == 0) throw new NotOwnedException("comida not found or not owned");
@@ -121,7 +123,14 @@ public class ComidaRepository {
             s.setObject(1, id);
             s.setObject(2, userId);
             s.executeUpdate();
-        } catch (SQLException e) { throw new RuntimeException(e); }
+        } catch (SQLException e) {
+            // FK from meal_template_items / meal_items (no action) — the comida is still
+            // referenced by a marmita or a logged day. Surface a 409 instead of a silent 500.
+            if ("23503".equals(e.getSQLState())) {
+                throw new InUseException("Comida em uso em uma marmita ou dia registrado. Remova-a de lá antes de excluir.");
+            }
+            throw new RuntimeException(e);
+        }
     }
 
     private void insertItems(Connection conn, UUID userId, UUID comidaId, List<Comida.ComidaProduto> items) throws SQLException {
@@ -154,6 +163,7 @@ public class ComidaRepository {
             try {
                 var ts = rs.getTimestamp("created_at");
                 return new ComidaBuilder(id, rs.getString("name"),
+                    (Double) rs.getObject("yield_grams"),
                     ts == null ? null : OffsetDateTime.ofInstant(ts.toInstant(), ZoneOffset.UTC));
             } catch (SQLException e) { throw new RuntimeException(e); }
         });
@@ -164,11 +174,11 @@ public class ComidaRepository {
     }
 
     private static final class ComidaBuilder {
-        final UUID id; final String name; final OffsetDateTime createdAt;
+        final UUID id; final String name; final Double yieldGrams; final OffsetDateTime createdAt;
         final List<Comida.ComidaProduto> items = new ArrayList<>();
-        ComidaBuilder(UUID id, String name, OffsetDateTime createdAt) {
-            this.id = id; this.name = name; this.createdAt = createdAt;
+        ComidaBuilder(UUID id, String name, Double yieldGrams, OffsetDateTime createdAt) {
+            this.id = id; this.name = name; this.yieldGrams = yieldGrams; this.createdAt = createdAt;
         }
-        Comida build() { return new Comida(id, name, items, createdAt); }
+        Comida build() { return new Comida(id, name, items, yieldGrams, createdAt); }
     }
 }

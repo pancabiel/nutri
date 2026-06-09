@@ -48,7 +48,7 @@ export default function UpgradeModal({ cap, onClose }) {
           </button>
         </div>
 
-        <div className="px-5 py-4">
+        <div className="px-5 pt-4 pb-[max(env(safe-area-inset-bottom),16px)]">
           <ul className="space-y-2 mb-4">
             <Bullet>20 mensagens de chat por dia</Bullet>
             <Bullet>10 análises de foto por dia</Bullet>

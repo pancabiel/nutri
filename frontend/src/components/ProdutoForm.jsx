@@ -2,6 +2,7 @@ import { useState } from "react";
 import Icon from "./Icon.jsx";
 import Sheet from "./Sheet.jsx";
 import NumberInput from "./NumberInput.jsx";
+import SaveButton from "./SaveButton.jsx";
 
 export default function ProdutoForm({ produto, prefill, title, hint, onClose, onSave }) {
   const init = produto ?? {
@@ -57,7 +58,7 @@ export default function ProdutoForm({ produto, prefill, title, hint, onClose, on
         <Field label="Carbs (g)"><NumberInput value={per100("carbsPerGram")} onChange={v => setPer100("carbsPerGram", v)} className="w-full bg-slate-100 rounded-lg px-3 py-2 outline-none"/></Field>
         <Field label="Gordura (g)"><NumberInput value={per100("fatPerGram")} onChange={v => setPer100("fatPerGram", v)} className="w-full bg-slate-100 rounded-lg px-3 py-2 outline-none"/></Field>
       </div>
-      <button onClick={() => onSave(form)} disabled={!form.name.trim()} className="w-full mt-5 bg-emerald-500 disabled:bg-slate-200 text-white font-semibold py-3 rounded-full">Salvar</button>
+      <SaveButton onClick={() => onSave(form)} disabled={!form.name.trim()} className="w-full mt-5 bg-emerald-500 disabled:bg-slate-200 text-white font-semibold py-3 rounded-full">Salvar</SaveButton>
     </Sheet>
   );
 }

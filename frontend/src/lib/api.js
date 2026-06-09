@@ -40,7 +40,16 @@ async function http(path, opts = {}) {
     try { window.dispatchEvent(new CustomEvent("nutri:cap-exceeded", { detail: cap })); } catch {}
     throw new CapError(cap);
   }
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    // Surface the server's message (e.g. 409 in_use) so callers can show it instead
+    // of a bare status code. Keep the Error type so existing catch blocks still work.
+    let body = null;
+    try { body = await res.json(); } catch {}
+    const err = new Error(body?.message || `${res.status} ${res.statusText}`);
+    err.status = res.status;
+    err.body = body;
+    throw err;
+  }
   if (res.status === 204) return null;
   return res.json();
 }
@@ -56,6 +65,7 @@ export const api = {
   // comidas
   comidas: {
     list:   (q = "")          => http(`/comidas${q ? `?q=${encodeURIComponent(q)}` : ""}`),
+    parse:  (text)            => http(`/comidas/parse`, { method: "POST", body: JSON.stringify({ text }) }),
     create: (c)               => http(`/comidas`, { method: "POST", body: JSON.stringify(c) }),
     update: (id, c)           => http(`/comidas/${id}`, { method: "PUT", body: JSON.stringify(c) }),
     remove: (id)              => http(`/comidas/${id}`, { method: "DELETE" }),
@@ -69,6 +79,15 @@ export const api = {
     addItem: (sectionId, it)  => http(`/meal-days/sections/${sectionId}/items`, { method: "POST", body: JSON.stringify(it) }),
     updateItem: (id, it)      => http(`/meal-days/items/${id}`, { method: "PUT", body: JSON.stringify(it) }),
     deleteItem: (id)          => http(`/meal-days/items/${id}`, { method: "DELETE" }),
+    batch: (payload)          => http(`/meal-days/batch`, { method: "POST", body: JSON.stringify(payload) }),
+  },
+  // meal templates (marmitas)
+  mealTemplates: {
+    list:   ()                => http(`/meal-templates`),
+    parse:  (text)            => http(`/meal-templates/parse`, { method: "POST", body: JSON.stringify({ text }) }),
+    create: (t)               => http(`/meal-templates`, { method: "POST", body: JSON.stringify(t) }),
+    update: (id, t)           => http(`/meal-templates/${id}`, { method: "PUT", body: JSON.stringify(t) }),
+    remove: (id)              => http(`/meal-templates/${id}`, { method: "DELETE" }),
   },
   // profile
   profile: {
@@ -83,6 +102,13 @@ export const api = {
   billing: {
     checkout: (plan)          => http(`/billing/checkout`, { method: "POST", body: JSON.stringify({ plan }) }),
     portal:   ()              => http(`/billing/portal`, { method: "POST" }),
+  },
+  // push notifications (reminders)
+  push: {
+    subscribe:   (s) => http(`/push/subscribe`,   { method: "POST", body: JSON.stringify(s) }),
+    unsubscribe: (s) => http(`/push/unsubscribe`, { method: "POST", body: JSON.stringify(s) }),
+    getPrefs:    ()  => http(`/push/prefs`),
+    setPrefs:    (p) => http(`/push/prefs`, { method: "PUT", body: JSON.stringify(p) }),
   },
   // ai
   chat:        (msg, date, section) => http(`/chat-log`, { method: "POST", body: JSON.stringify({ message: msg, date, section }) }),

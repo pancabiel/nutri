@@ -2,6 +2,7 @@ package com.nutri.resource;
 
 import com.nutri.repository.KillSwitchRepository;
 import com.nutri.repository.UsageRepository;
+import com.nutri.service.ReminderService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -42,6 +43,11 @@ import java.util.Optional;
  * Alternative if EventBridge Scheduler HTTP target isn't available: a tiny scheduled
  * Lambda that curls the endpoint, or a GitHub Actions cron workflow.
  *
+ * <h3>Schedules</h3>
+ * Two EventBridge schedules hit this resource (both declared in {@code sam.native.yaml}):
+ * {@code nutri-kill-switch-check} ({@code rate(1 hour)}) and {@code nutri-send-reminders}
+ * ({@code rate(15 minutes)}). Both pass the same {@code X-Cron-Secret}.
+ *
  * <h3>Smoke test</h3>
  * <pre>curl -X POST -H "X-Cron-Secret: $SECRET" $URL/cron/kill-switch-check</pre>
  *
@@ -57,6 +63,7 @@ public class CronResource {
 
     @Inject UsageRepository usage;
     @Inject KillSwitchRepository killSwitch;
+    @Inject ReminderService reminders;
 
     @ConfigProperty(name = "cron.secret")                       Optional<String> cronSecret;
     @ConfigProperty(name = "killswitch.daily-usd-threshold",
@@ -96,6 +103,23 @@ public class CronResource {
             body.put("action", "ok");
         }
         return Response.ok(body).build();
+    }
+
+    /**
+     * Dispatch any reminders due in the current ~15-minute slot. Invoked by the
+     * {@code nutri-send-reminders} EventBridge schedule (see {@code sam.native.yaml}),
+     * authenticated by the same {@code X-Cron-Secret}. Idempotent within a slot.
+     *
+     * <pre>curl -X POST -H "X-Cron-Secret: $SECRET" $URL/cron/send-reminders</pre>
+     */
+    @POST
+    @Path("send-reminders")
+    public Response sendReminders(@HeaderParam("X-Cron-Secret") String providedSecret) {
+        if (!secretMatches(providedSecret)) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        int sent = reminders.runDue(Instant.now());
+        return Response.ok(java.util.Map.of("sent", sent)).build();
     }
 
     private boolean secretMatches(String provided) {

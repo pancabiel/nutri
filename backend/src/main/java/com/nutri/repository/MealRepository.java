@@ -98,9 +98,9 @@ public class MealRepository {
         var id = UUID.randomUUID();
         var sql = """
             insert into meal_items
-              (id, meal_section_id, produto_id, comida_id, name, quantity, calories, protein)
-            values (?, ?, ?, ?, ?, ?, ?, ?)
-            returning id, produto_id, comida_id, name, quantity, calories, protein""";
+              (id, meal_section_id, produto_id, comida_id, name, quantity, calories, protein, unit, carbs, fat)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            returning id, produto_id, comida_id, name, quantity, calories, protein, unit, carbs, fat""";
         try (var c = ds.getConnection();
              var s = c.prepareStatement(sql)) {
             s.setObject(1, id);
@@ -111,11 +111,29 @@ public class MealRepository {
             s.setDouble(6, item.quantity());
             s.setInt(7, item.calories());
             s.setDouble(8, item.protein());
+            s.setString(9, item.unit());
+            s.setObject(10, item.carbs());
+            s.setObject(11, item.fat());
             try (var rs = s.executeQuery()) {
                 rs.next();
                 return mapItem(rs);
             }
         } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+    /**
+     * Replicate a set of items across multiple dates in one section — the meal-prep
+     * "aplicar na semana" flow. Reuses {@link #resolveSection} (lazy day+section create)
+     * and {@link #addItem} (per-item ownership validation). Returns items inserted.
+     */
+    public int batchAdd(UUID userId, String section, List<LocalDate> dates, List<MealDay.MealItem> items) {
+        if (dates == null || items == null) return 0;
+        int inserted = 0;
+        for (var date : dates) {
+            var sectionId = resolveSection(userId, date, section);
+            for (var it : items) { addItem(userId, sectionId, it); inserted++; }
+        }
+        return inserted;
     }
 
     public MealDay.MealItem updateItem(UUID userId, UUID itemId, MealDay.MealItem item) {
@@ -124,9 +142,10 @@ public class MealRepository {
         var comidaId  = validateOwnedComida(userId, item.comidaId());
         var sql = """
             update meal_items
-               set produto_id = ?, comida_id = ?, name = ?, quantity = ?, calories = ?, protein = ?
+               set produto_id = ?, comida_id = ?, name = ?, quantity = ?, calories = ?, protein = ?, unit = ?,
+                   carbs = ?, fat = ?
              where id = ?
-            returning id, produto_id, comida_id, name, quantity, calories, protein""";
+            returning id, produto_id, comida_id, name, quantity, calories, protein, unit, carbs, fat""";
         try (var c = ds.getConnection();
              var s = c.prepareStatement(sql)) {
             s.setObject(1, produtoId);
@@ -135,7 +154,10 @@ public class MealRepository {
             s.setDouble(4, item.quantity());
             s.setInt(5, item.calories());
             s.setDouble(6, item.protein());
-            s.setObject(7, itemId);
+            s.setString(7, item.unit());
+            s.setObject(8, item.carbs());
+            s.setObject(9, item.fat());
+            s.setObject(10, itemId);
             try (var rs = s.executeQuery()) {
                 rs.next();
                 return mapItem(rs);
@@ -176,6 +198,30 @@ public class MealRepository {
         return addSection(userId, date, sectionName).id();
     }
 
+    /**
+     * Section names on {@code date} that already have at least one item, for the
+     * reminder cron's "skip if logged" check. Compared against the canonical
+     * section names ({@code "Café da manhã"}, {@code "Almoço"}, ...).
+     */
+    public Set<String> loggedSectionNamesOn(UUID userId, LocalDate date) {
+        var sql = """
+            select distinct s.name
+              from meal_days d
+              join meal_sections s on s.meal_day_id = d.id
+              join meal_items   i on i.meal_section_id = s.id
+             where d.user_id = ? and d.date = ?""";
+        var out = new HashSet<String>();
+        try (var c = ds.getConnection();
+             var s = c.prepareStatement(sql)) {
+            s.setObject(1, userId);
+            s.setDate(2, java.sql.Date.valueOf(date));
+            try (var rs = s.executeQuery()) {
+                while (rs.next()) out.add(rs.getString("name"));
+            }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+        return out;
+    }
+
     private UUID ensureDay(UUID userId, LocalDate date) {
         try (var c = ds.getConnection()) {
             try (var s = c.prepareStatement(
@@ -213,7 +259,7 @@ public class MealRepository {
         var sql = """
             select s.id as section_id, s.name as section_name, s.order_index,
                    i.id as item_id, i.produto_id, i.comida_id, i.name as item_name,
-                   i.quantity, i.calories, i.protein
+                   i.quantity, i.calories, i.protein, i.unit, i.carbs, i.fat
               from meal_sections s
               join meal_days d on d.id = s.meal_day_id
               left join meal_items i on i.meal_section_id = s.id
@@ -308,7 +354,10 @@ public class MealRepository {
             rs.getString(hasColumn(rs, "item_name") ? "item_name" : "name"),
             rs.getDouble("quantity"),
             rs.getInt("calories"),
-            rs.getDouble("protein")
+            rs.getDouble("protein"),
+            rs.getString("unit"),
+            (Double) rs.getObject("carbs"),
+            (Double) rs.getObject("fat")
         );
     }
 

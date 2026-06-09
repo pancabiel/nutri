@@ -4,8 +4,10 @@ import Sheet from "../components/Sheet.jsx";
 import ConfirmDialog from "../components/ConfirmDialog.jsx";
 import ProdutoForm from "../components/ProdutoForm.jsx";
 import NumberInput from "../components/NumberInput.jsx";
+import SaveButton from "../components/SaveButton.jsx";
 import { api } from "../lib/api.js";
 import { useStore } from "../state/store.jsx";
+import { comidaTotals, comidaPerGram } from "../lib/macros.js";
 
 const SECTIONS = ["Café da manhã", "Almoço", "Lanche", "Jantar"];
 
@@ -32,8 +34,8 @@ export default function DayScreen({ date, onBack }) {
   }, { calories: 0, protein: 0 });
   totals.protein = +totals.protein.toFixed(1);
 
-  async function removeItem(id) { await api.meals.deleteItem(id); reload(); }
-  async function removeSection(id) { await api.meals.deleteSection(id); reload(); }
+  async function removeItem(id) { await api.meals.deleteItem(id); showToast("Item removido"); reload(); }
+  async function removeSection(id) { await api.meals.deleteSection(id); showToast("Seção removida"); reload(); }
 
   function askRemoveSection(section) {
     setConfirm({
@@ -49,7 +51,7 @@ export default function DayScreen({ date, onBack }) {
     setConfirm({
       title: "Remover item?",
       message: "Este item será removido do diário.",
-      detail: `${item.name} · ${item.quantity}${item.comidaId ? "×" : "g"} · ${item.calories} kcal`,
+      detail: `${item.name} · ${item.quantity}${unitLabel(item)} · ${item.calories} kcal`,
       onConfirm: async () => { setConfirm(null); await removeItem(item.id); },
     });
   }
@@ -100,7 +102,7 @@ export default function DayScreen({ date, onBack }) {
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0 ${it.comidaId ? "bg-amber-100" : "bg-emerald-100"}`}>{it.comidaId ? "🍽️" : "🥚"}</div>
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-slate-800 text-[14px] truncate">{it.name}</div>
-                        <div className="text-[11px] text-slate-500">{it.quantity}{it.comidaId ? "×" : "g"} · {it.calories} kcal · {it.protein}g prot</div>
+                        <div className="text-[11px] text-slate-500">{it.quantity}{unitLabel(it)} · {it.calories} kcal · {it.protein}g prot</div>
                       </div>
                     </button>
                     <button onClick={() => askRemoveItem(it)} className="w-8 h-8 flex items-center justify-center text-red-500 shrink-0"><Icon name="close" className="w-4 h-4"/></button>
@@ -125,13 +127,17 @@ export default function DayScreen({ date, onBack }) {
           onClose={() => setRegisteringItem(null)}
           onSave={async (form) => {
             const created = await api.produtos.create(form);
+            const grams = registeringItem.quantity;
             await api.meals.updateItem(registeringItem.id, {
               produtoId: created.id,
               comidaId: null,
               name: registeringItem.name,
-              quantity: registeringItem.quantity,
+              quantity: grams,
               calories: registeringItem.calories,
               protein: registeringItem.protein,
+              unit: "g",
+              carbs: form.carbsPerGram != null ? +(form.carbsPerGram * grams).toFixed(1) : null,
+              fat:   form.fatPerGram   != null ? +(form.fatPerGram   * grams).toFixed(1) : null,
             });
             setRegisteringItem(null);
             showToast(`${created.name} registrado`);
@@ -154,14 +160,23 @@ export default function DayScreen({ date, onBack }) {
   );
 }
 
+// Display suffix for an item's quantity: 'g' for grams (produto or gram-portioned
+// comida), '×' for portion-based comida. Falls back by reference for legacy rows
+// logged before the unit column existed.
+function unitLabel(it) {
+  if (it.unit === "g") return "g";
+  if (it.unit === "porcao") return "×";
+  return it.comidaId ? "×" : "g";
+}
+
 function prefillFromItem(it) {
   const grams = it.quantity > 0 ? it.quantity : 100;
   return {
     name: it.name,
     calories_per_100g: +(it.calories / grams * 100).toFixed(1),
     protein_per_100g:  +(it.protein  / grams * 100).toFixed(2),
-    carbs_per_100g:    0,
-    fat_per_100g:      0,
+    carbs_per_100g:    it.carbs != null ? +(it.carbs / grams * 100).toFixed(1) : 0,
+    fat_per_100g:      it.fat   != null ? +(it.fat   / grams * 100).toFixed(1) : 0,
     serving_grams:     grams,
     serving_label:     "",
   };
@@ -190,8 +205,13 @@ function AddItemSheet({ section, existing, produtos, comidas, onClose, onAdded, 
       : null
   );
   const [qty, setQty] = useState(existing?.quantity ?? 100);
+  const [comidaUnit, setComidaUnit] = useState(existing?.comidaId && existing?.unit === "g" ? "g" : "porcao");
 
   const list = (tab === "produtos" ? produtos : comidas).filter(x => !q || x.name.toLowerCase().includes(q.toLowerCase()));
+
+  const pickedComida = picked?.kind === "comida" ? comidas.find(x => x.id === picked.id) : null;
+  const canGram = !!pickedComida && pickedComida.yieldGrams > 0;          // batch comida → can portion by grams
+  const effUnit = canGram ? comidaUnit : "porcao";
 
   async function confirm() {
     let item;
@@ -200,23 +220,24 @@ function AddItemSheet({ section, existing, produtos, comidas, onClose, onAdded, 
       const scale = qty / oldQty;
       item = { produtoId: null, comidaId: null, name: existing.name, quantity: qty,
                calories: Math.round(existing.calories * scale),
-               protein: +(existing.protein * scale).toFixed(1) };
+               protein: +(existing.protein * scale).toFixed(1), unit: existing.unit ?? "g",
+               carbs: existing.carbs != null ? +(existing.carbs * scale).toFixed(1) : null,
+               fat:   existing.fat   != null ? +(existing.fat   * scale).toFixed(1) : null };
     } else if (picked?.kind === "produto") {
       const p = produtos.find(x => x.id === picked.id);
       item = { produtoId: p.id, comidaId: null, name: p.name, quantity: qty,
-               calories: Math.round(p.caloriesPerGram * qty), protein: +(p.proteinPerGram * qty).toFixed(1) };
+               calories: Math.round(p.caloriesPerGram * qty), protein: +(p.proteinPerGram * qty).toFixed(1), unit: "g" };
     } else if (picked?.kind === "comida") {
-      const c = comidas.find(x => x.id === picked.id);
-      const cal = c.items.reduce((s, it) => {
-        const p = produtos.find(x => x.id === it.produtoId);
-        return s + (p ? p.caloriesPerGram * it.quantityGrams : 0);
-      }, 0);
-      const prot = c.items.reduce((s, it) => {
-        const p = produtos.find(x => x.id === it.produtoId);
-        return s + (p ? p.proteinPerGram * it.quantityGrams : 0);
-      }, 0);
-      item = { produtoId: null, comidaId: c.id, name: c.name, quantity: qty,
-               calories: Math.round(cal * qty), protein: +(prot * qty).toFixed(1) };
+      const c = pickedComida;
+      if (effUnit === "g") {
+        const pg = comidaPerGram(c, produtos);
+        item = { produtoId: null, comidaId: c.id, name: c.name, quantity: qty,
+                 calories: Math.round(pg.cal * qty), protein: +(pg.prot * qty).toFixed(1), unit: "g" };
+      } else {
+        const tot = comidaTotals(c, produtos);
+        item = { produtoId: null, comidaId: c.id, name: c.name, quantity: qty,
+                 calories: Math.round(tot.cal * qty), protein: +(tot.prot * qty).toFixed(1), unit: "porcao" };
+      }
     } else return;
     if (isEdit) await api.meals.updateItem(existing.id, item);
     else await api.meals.addItem(section.id, item);
@@ -224,8 +245,9 @@ function AddItemSheet({ section, existing, produtos, comidas, onClose, onAdded, 
   }
 
   const showQtyEditor = isUnregistered || !!picked;
-  const qtyUnit = isUnregistered || picked?.kind === "produto" ? "gramas" : "porções";
-  const qtyStep = isUnregistered || picked?.kind === "produto" ? 10 : 1;
+  const isGrams = isUnregistered || picked?.kind === "produto" || effUnit === "g";
+  const qtyUnit = isGrams ? "gramas" : "porções";
+  const qtyStep = isGrams ? 10 : 1;
   const canSave = isUnregistered ? qty > 0 : !!picked;
 
   return (
@@ -268,6 +290,13 @@ function AddItemSheet({ section, existing, produtos, comidas, onClose, onAdded, 
           </div>
         </>
       )}
+      {canGram && (
+        <div className="flex gap-1 bg-slate-100 rounded-full p-1 mb-3">
+          {[["porcao", "porções"], ["g", "gramas"]].map(([u, label]) => (
+            <button key={u} onClick={() => { setComidaUnit(u); setQty(u === "g" ? 150 : 1); }} className={`flex-1 py-2 rounded-full text-sm font-semibold ${comidaUnit === u ? "bg-white shadow text-slate-900" : "text-slate-500"}`}>{label}</button>
+          ))}
+        </div>
+      )}
       {showQtyEditor && (
         <div className="bg-slate-50 rounded-xl p-3 mb-3">
           <div className="text-xs text-slate-500 mb-1">Quantidade ({qtyUnit})</div>
@@ -278,7 +307,7 @@ function AddItemSheet({ section, existing, produtos, comidas, onClose, onAdded, 
           </div>
         </div>
       )}
-      <button disabled={!canSave} onClick={confirm} className="w-full bg-emerald-500 disabled:bg-slate-200 text-white font-semibold py-3 rounded-full">{isEdit ? "Salvar" : "Adicionar"}</button>
+      <SaveButton disabled={!canSave} onClick={confirm} savingLabel={isEdit ? "Salvando…" : "Adicionando…"} className="w-full bg-emerald-500 disabled:bg-slate-200 text-white font-semibold py-3 rounded-full">{isEdit ? "Salvar" : "Adicionar"}</SaveButton>
     </Sheet>
   );
 }

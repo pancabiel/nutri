@@ -50,6 +50,19 @@ Parameters:
     Type: String
     Default: 'http://localhost:5173'
     Description: Base URL of the deployed frontend — used for Checkout success/cancel + Portal return URLs.
+  VapidPublicKey:
+    Type: String
+    Default: ''
+    Description: Web Push VAPID public key (base64url P-256 uncompressed point). Empty disables push.
+  VapidPrivateKey:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: Web Push VAPID private key (base64url 32-byte scalar). Empty disables push.
+  VapidSubject:
+    Type: String
+    Default: 'mailto:pancabiel@gmail.com'
+    Description: VAPID contact (mailto: or https:) sent in the push JWT sub claim.
 
 Globals:
   Api:
@@ -83,6 +96,9 @@ Resources:
           STRIPE_PRICE_MONTHLY: !Ref StripePriceMonthly
           STRIPE_PRICE_YEARLY: !Ref StripePriceYearly
           APP_FRONTEND_URL: !Ref AppFrontendUrl
+          VAPID_PUBLIC_KEY: !Ref VapidPublicKey
+          VAPID_PRIVATE_KEY: !Ref VapidPrivateKey
+          VAPID_SUBJECT: !Ref VapidSubject
       Events:
         HttpApiEvent:
           Type: HttpApi
@@ -118,6 +134,44 @@ Resources:
                   },
                   "requestId": "scheduled",
                   "routeKey": "POST /cron/kill-switch-check",
+                  "stage": "$default",
+                  "time": "01/Jan/2024:00:00:00 +0000",
+                  "timeEpoch": 1704067200000
+                },
+                "isBase64Encoded": false
+              }
+        SendReminders:
+          Type: Schedule
+          Properties:
+            Name: nutri-send-reminders
+            Description: Every 15 min — dispatch due push reminders (eat / log meals).
+            Schedule: rate(15 minutes)
+            Enabled: true
+            Input: !Sub |
+              {
+                "version": "2.0",
+                "routeKey": "POST /cron/send-reminders",
+                "rawPath": "/cron/send-reminders",
+                "rawQueryString": "",
+                "headers": {
+                  "x-cron-secret": "${CronSecret}",
+                  "content-type": "application/json",
+                  "content-length": "0"
+                },
+                "requestContext": {
+                  "accountId": "scheduled",
+                  "apiId": "scheduled",
+                  "domainName": "scheduled.invoke",
+                  "domainPrefix": "scheduled",
+                  "http": {
+                    "method": "POST",
+                    "path": "/cron/send-reminders",
+                    "protocol": "HTTP/1.1",
+                    "sourceIp": "127.0.0.1",
+                    "userAgent": "EventBridge-Scheduled-Invoke"
+                  },
+                  "requestId": "scheduled",
+                  "routeKey": "POST /cron/send-reminders",
                   "stage": "$default",
                   "time": "01/Jan/2024:00:00:00 +0000",
                   "timeEpoch": 1704067200000

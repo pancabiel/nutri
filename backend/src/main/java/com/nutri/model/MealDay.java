@@ -23,6 +23,9 @@ public record MealDay(
         String name,
         double quantity,
         int calories,
-        double protein
+        double protein,
+        String unit,
+        Double carbs,
+        Double fat
     ) {}
 }
