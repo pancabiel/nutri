@@ -6,6 +6,7 @@ import CalendarScreen from "./screens/CalendarScreen.jsx";
 import DayScreen from "./screens/DayScreen.jsx";
 import ProdutosScreen from "./screens/ProdutosScreen.jsx";
 import ComidasScreen from "./screens/ComidasScreen.jsx";
+import MarmitasScreen from "./screens/MarmitasScreen.jsx";
 import LoginScreen from "./screens/LoginScreen.jsx";
 import OnboardingScreen from "./screens/OnboardingScreen.jsx";
 import SettingsScreen from "./screens/SettingsScreen.jsx";
@@ -25,6 +26,7 @@ function Shell({ onOpenSettings, isPro }) {
     day: <DayScreen date={date} onBack={() => setScreen("calendar")} />,
     produtos: <ProdutosScreen />,
     comidas: <ComidasScreen />,
+    marmitas: <MarmitasScreen />,
   };
 
   return (
@@ -56,20 +58,21 @@ function Shell({ onOpenSettings, isPro }) {
         {screen !== "chat" && otherScreens[screen]}
       </div>
 
-      <nav className="shrink-0 border-t border-slate-200 bg-white/95 backdrop-blur px-2 pt-2 pb-[max(env(safe-area-inset-bottom),12px)]">
-        <div className="grid grid-cols-4 gap-1 max-w-md mx-auto">
+      <nav className="shrink-0 border-t border-slate-200 bg-white/95 backdrop-blur px-2 pt-1.5 pb-[max(env(safe-area-inset-bottom),8px)]">
+        <div className="grid grid-cols-5 gap-1 max-w-md mx-auto">
           <NavBtn active={screen === "chat"}                                onClick={() => setScreen("chat")}     icon="chat"     label="Chat"/>
           <NavBtn active={screen === "calendar" || screen === "day"}        onClick={() => setScreen("calendar")} icon="calendar" label="Agenda"/>
           <NavBtn active={screen === "produtos"}                            onClick={() => setScreen("produtos")} icon="box"      label="Produtos"/>
           <NavBtn active={screen === "comidas"}                             onClick={() => setScreen("comidas")}  icon="plate"    label="Comidas"/>
+          <NavBtn active={screen === "marmitas"}                            onClick={() => setScreen("marmitas")} icon="layers"   label="Marmitas"/>
         </div>
       </nav>
 
       {toast && (
-        <div className="pointer-events-none fixed left-1/2 -translate-x-1/2 bottom-24 z-50 fade-in">
-          <div className="rounded-full bg-slate-900 text-white text-sm px-4 py-2 shadow-lg flex items-center gap-2">
-            <Icon name="check" className="w-4 h-4 text-emerald-400" />
-            {toast}
+        <div className="pointer-events-none fixed left-1/2 -translate-x-1/2 bottom-24 z-50 fade-in max-w-[90%]">
+          <div className={`rounded-full text-white text-sm px-4 py-2 shadow-lg flex items-center gap-2 ${toast.type === "error" ? "bg-red-600" : "bg-slate-900"}`}>
+            <Icon name={toast.type === "error" ? "close" : "check"} className={`w-4 h-4 shrink-0 ${toast.type === "error" ? "text-white" : "text-emerald-400"}`} />
+            <span className="min-w-0">{toast.msg}</span>
           </div>
         </div>
       )}
@@ -79,7 +82,7 @@ function Shell({ onOpenSettings, isPro }) {
 
 function NavBtn({ active, onClick, icon, label }) {
   return (
-    <button onClick={onClick} className={`flex flex-col items-center gap-1 py-2 rounded-xl transition-colors ${active ? "text-emerald-600" : "text-slate-400"}`}>
+    <button onClick={onClick} className={`flex flex-col items-center gap-1 py-1.5 rounded-xl transition-colors ${active ? "text-emerald-600" : "text-slate-400"}`}>
       <Icon name={icon} className="w-6 h-6" />
       <span className="text-[10px] font-medium">{label}</span>
     </button>

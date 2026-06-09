@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#10b981" />
+    <title>Nutri: Conte calorias só falando ou tirando foto</title>
+    <meta name="description" content="Fala o que você comeu ou tira uma foto. A IA conta as calorias por você. Sem buscar alimento na base. Sem ajustar porção. Funciona em português." />
+
+    <meta property="og:title" content="Nutri: Conte calorias só falando ou tirando foto" />
+    <meta property="og:description" content="Diga o que comeu em português. A IA faz o resto." />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="pt_BR" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body class="bg-white text-slate-900 font-sans antialiased">
+
+    <!-- Nav -->
+    <nav class="sticky top-0 z-40 bg-white/80 backdrop-blur border-b border-slate-200">
+      <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+        <a href="/" class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-brand-500 grid place-items-center text-white font-bold">N</div>
+          <span class="font-bold text-lg">Nutri</span>
+        </a>
+        <div class="flex items-center gap-3">
+          <a href="#preco" class="hidden sm:inline text-sm text-slate-600 hover:text-slate-900">Preço</a>
+          <a href="#faq" class="hidden sm:inline text-sm text-slate-600 hover:text-slate-900">FAQ</a>
+          <a data-app-link class="bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+            Entrar
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="px-4 pt-12 pb-16 sm:pt-20 sm:pb-24">
+      <div class="max-w-5xl mx-auto text-center fade-up">
+        <span class="inline-block bg-brand-50 text-brand-700 text-xs font-medium px-3 py-1 rounded-full mb-6">
+          Feito pra quem come comida brasileira
+        </span>
+        <h1 class="text-4xl sm:text-6xl font-bold tracking-tight leading-tight">
+          Fala o que você comeu.<br/>
+          <span class="text-brand-600">A IA conta as calorias.</span>
+        </h1>
+        <p class="mt-6 text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto">
+          Sem buscar alimento na base. Sem ajustar porção em gramas.
+          Digite, tire uma foto, ou escaneie o rótulo. Pronto.
+        </p>
+        <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <a data-app-link class="w-full sm:w-auto bg-brand-500 hover:bg-brand-600 text-white font-semibold px-8 py-4 rounded-xl text-lg transition shadow-lg shadow-brand-500/20">
+            Começar grátis
+          </a>
+          <a href="#demo" class="w-full sm:w-auto text-slate-700 hover:text-slate-900 font-medium px-8 py-4 rounded-xl text-lg transition border border-slate-200 hover:bg-slate-50">
+            Ver demo
+          </a>
+        </div>
+        <p class="mt-4 text-sm text-slate-500">Sem cartão. 3 chats + 1 foto + 1 rótulo grátis pra testar.</p>
+      </div>
+    </section>
+
+    <!-- Demo -->
+    <section id="demo" class="px-4 py-16 bg-slate-50">
+      <div class="max-w-5xl mx-auto">
+        <h2 class="text-3xl sm:text-4xl font-bold text-center mb-3">Veja em ação</h2>
+        <p class="text-slate-600 text-center mb-12">O usuário escreve em português. A IA quebra em itens.</p>
+
+        <div class="grid md:grid-cols-2 gap-8 items-center">
+          <!-- Phone mockup -->
+          <div class="bg-white rounded-3xl shadow-xl border border-slate-200 p-6 max-w-sm mx-auto md:ml-auto">
+            <div class="text-xs text-slate-400 mb-4">Almoço · hoje</div>
+            <div class="space-y-3">
+              <div class="chat-bubble-user px-4 py-3 max-w-[85%] ml-auto text-sm">
+                comi 2 pães de forma com requeijão, ovo mexido e um café com leite
+              </div>
+              <div class="chat-bubble-ai px-4 py-3 max-w-[90%] text-sm">
+                <div class="font-semibold mb-2">Adicionado ao almoço ✓</div>
+                <div class="space-y-1.5 text-xs">
+                  <div class="flex justify-between"><span>Pão de forma (2 fatias, 50g)</span><span class="text-slate-500">132 kcal</span></div>
+                  <div class="flex justify-between"><span>Requeijão (20g)</span><span class="text-slate-500">52 kcal</span></div>
+                  <div class="flex justify-between"><span>Ovo mexido (60g)</span><span class="text-slate-500">93 kcal</span></div>
+                  <div class="flex justify-between"><span>Café com leite (200ml)</span><span class="text-slate-500">88 kcal</span></div>
+                </div>
+                <div class="mt-3 pt-3 border-t border-slate-200 flex justify-between text-xs font-semibold">
+                  <span>Total</span><span class="text-brand-600">365 kcal · 19g proteína</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pitch -->
+          <div class="space-y-6">
+            <div>
+              <div class="text-brand-600 font-bold text-sm uppercase tracking-wide">Linguagem natural</div>
+              <h3 class="text-2xl font-bold mt-1">Entende "duas fatias", não só gramas</h3>
+              <p class="text-slate-600 mt-2">"Dois pães", "um copo", "uma colher": a IA converte pra grama e calcula tudo.</p>
+            </div>
+            <div>
+              <div class="text-brand-600 font-bold text-sm uppercase tracking-wide">Sem busca, sem fricção</div>
+              <h3 class="text-2xl font-bold mt-1">Esquece a base de 8 milhões de alimentos</h3>
+              <p class="text-slate-600 mt-2">No MyFitnessPal você passa 2 minutos pra registrar um café da manhã. Aqui são 5 segundos.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="px-4 py-20">
+      <div class="max-w-6xl mx-auto">
+        <h2 class="text-3xl sm:text-4xl font-bold text-center mb-3">Três formas de registrar</h2>
+        <p class="text-slate-600 text-center mb-16">Qualquer uma delas em menos de 10 segundos.</p>
+        <div class="grid md:grid-cols-3 gap-6">
+          <div class="p-8 rounded-2xl border border-slate-200 hover:border-brand-500 transition">
+            <div class="w-12 h-12 rounded-xl bg-brand-50 text-brand-600 grid place-items-center text-2xl mb-4">💬</div>
+            <h3 class="font-bold text-lg mb-2">Texto</h3>
+            <p class="text-slate-600 text-sm">"Comi arroz, feijão, um bife pequeno e couve refogada." Pronto. A IA quebra em itens e calcula.</p>
+          </div>
+          <div class="p-8 rounded-2xl border border-slate-200 hover:border-brand-500 transition">
+            <div class="w-12 h-12 rounded-xl bg-brand-50 text-brand-600 grid place-items-center text-2xl mb-4">📷</div>
+            <h3 class="font-bold text-lg mb-2">Foto do prato</h3>
+            <p class="text-slate-600 text-sm">Tira foto antes de comer. Recebe a lista de cada item do prato com calorias e proteína estimada.</p>
+          </div>
+          <div class="p-8 rounded-2xl border border-slate-200 hover:border-brand-500 transition">
+            <div class="w-12 h-12 rounded-xl bg-brand-50 text-brand-600 grid place-items-center text-2xl mb-4">🏷️</div>
+            <h3 class="font-bold text-lg mb-2">Scan de rótulo</h3>
+            <p class="text-slate-600 text-sm">Aponta a câmera pra tabela nutricional. Cadastra o produto automaticamente na sua base.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pricing -->
+    <section id="preco" class="px-4 py-20 bg-slate-50">
+      <div class="max-w-5xl mx-auto">
+        <h2 class="text-3xl sm:text-4xl font-bold text-center mb-3">Simples e justo</h2>
+        <p class="text-slate-600 text-center mb-16">Escolha o plano que faz sentido pra você. Cancela quando quiser.</p>
+
+        <div class="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+          <div class="bg-white p-8 rounded-2xl border border-slate-200 flex flex-col">
+            <h3 class="font-bold text-xl mb-1">Mensal</h3>
+            <p class="text-slate-500 text-sm mb-6">Sem compromisso</p>
+            <div class="mb-6">
+              <span class="text-4xl font-bold">R$ 14,90</span>
+              <span class="text-slate-500">/mês</span>
+              <div class="text-sm text-slate-500 mt-1">Cobrança mensal recorrente</div>
+            </div>
+            <ul class="space-y-3 text-sm text-slate-700 mb-8">
+              <li class="flex gap-2"><span class="text-brand-600">✓</span> <strong>20</strong> registros por texto / dia</li>
+              <li class="flex gap-2"><span class="text-brand-600">✓</span> <strong>10</strong> fotos de prato / dia</li>
+              <li class="flex gap-2"><span class="text-brand-600">✓</span> <strong>10</strong> scans de rótulo / dia</li>
+              <li class="flex gap-2"><span class="text-brand-600">✓</span> Calendário e histórico completo</li>
+            </ul>
+            <a data-app-link class="mt-auto block text-center bg-white border border-slate-200 hover:bg-slate-50 text-slate-900 font-semibold px-6 py-3 rounded-xl transition">
+              Assinar mensal
+            </a>
+            <p class="text-xs text-slate-500 text-center mt-3">Cancela quando quiser. Sem fidelidade.</p>
+          </div>
+
+          <div class="bg-white p-8 rounded-2xl border-2 border-brand-500 relative flex flex-col">
+            <span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
+              Equivale a 4 meses grátis
+            </span>
+            <h3 class="font-bold text-xl mb-1">Anual</h3>
+            <p class="text-slate-500 text-sm mb-6">O mais escolhido</p>
+            <div class="mb-6">
+              <span class="text-4xl font-bold">R$ 9,92</span>
+              <span class="text-slate-500">/mês</span>
+              <div class="text-sm text-slate-500 mt-1">Cobrado <span class="font-semibold text-slate-700">R$ 119/ano</span></div>
+            </div>
+            <ul class="space-y-3 text-sm text-slate-700 mb-8">
+              <li class="flex gap-2"><span class="text-brand-600">✓</span> <strong>20</strong> registros por texto / dia</li>
+              <li class="flex gap-2"><span class="text-brand-600">✓</span> <strong>10</strong> fotos de prato / dia</li>
+              <li class="flex gap-2"><span class="text-brand-600">✓</span> <strong>10</strong> scans de rótulo / dia</li>
+              <li class="flex gap-2"><span class="text-brand-600">✓</span> Calendário e histórico completo</li>
+              <li class="flex gap-2"><span class="text-brand-600">✓</span> <strong>Preço travado</strong> por 12 meses, sem reajuste</li>
+            </ul>
+            <a data-app-link class="mt-auto block text-center bg-brand-500 hover:bg-brand-600 text-white font-semibold px-6 py-3 rounded-xl transition">
+              Assinar anual
+            </a>
+            <p class="text-xs text-slate-500 text-center mt-3">Cancela quando quiser. Sem fidelidade.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="px-4 py-20">
+      <div class="max-w-3xl mx-auto">
+        <h2 class="text-3xl sm:text-4xl font-bold text-center mb-12">Perguntas frequentes</h2>
+        <div class="space-y-4">
+          <details class="group p-6 rounded-2xl border border-slate-200">
+            <summary class="font-semibold cursor-pointer list-none flex justify-between items-center">
+              Funciona com qualquer comida brasileira?
+              <span class="text-brand-600 group-open:rotate-45 transition">+</span>
+            </summary>
+            <p class="text-slate-600 mt-3">Sim. Feijoada, pão de queijo, açaí, tapioca, brigadeiro: a IA conhece comida do dia a dia. Pra produtos de mercado, escaneia o rótulo e ele entra na sua base pessoal.</p>
+          </details>
+          <details class="group p-6 rounded-2xl border border-slate-200">
+            <summary class="font-semibold cursor-pointer list-none flex justify-between items-center">
+              Preciso instalar algum app?
+              <span class="text-brand-600 group-open:rotate-45 transition">+</span>
+            </summary>
+            <p class="text-slate-600 mt-3">Não. É um Web App: abre direto no Chrome ou Safari e você pode adicionar à tela inicial em 1 toque. Sem passar por App Store ou Play Store.</p>
+          </details>
+          <details class="group p-6 rounded-2xl border border-slate-200">
+            <summary class="font-semibold cursor-pointer list-none flex justify-between items-center">
+              Como é a precisão das calorias?
+              <span class="text-brand-600 group-open:rotate-45 transition">+</span>
+            </summary>
+            <p class="text-slate-600 mt-3">Boa pra controle prático. Toda contagem de calorias (mesmo a base USDA) tem margem de erro de 5 a 25%. O importante é a consistência ao longo de semanas, e nisso a facilidade do Nutri ganha de qualquer concorrente.</p>
+          </details>
+          <details class="group p-6 rounded-2xl border border-slate-200">
+            <summary class="font-semibold cursor-pointer list-none flex justify-between items-center">
+              Posso cancelar a qualquer momento?
+              <span class="text-brand-600 group-open:rotate-45 transition">+</span>
+            </summary>
+            <p class="text-slate-600 mt-3">Sim, dentro do próprio app, sem ligar, sem mandar email. O acesso continua até o fim do período pago.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="px-4 py-20 bg-brand-500 text-white text-center">
+      <h2 class="text-3xl sm:text-5xl font-bold mb-6">Comece hoje. Leva 30 segundos.</h2>
+      <p class="text-brand-50 text-lg mb-10 max-w-2xl mx-auto">3 chats e 1 foto grátis pra você testar antes de pagar qualquer coisa.</p>
+      <a data-app-link class="inline-block bg-white text-brand-600 hover:bg-slate-100 font-bold px-10 py-4 rounded-xl text-lg transition shadow-xl">
+        Criar conta grátis →
+      </a>
+    </section>
+
+    <!-- Footer -->
+    <footer class="px-4 py-10 bg-slate-900 text-slate-400 text-sm">
+      <div class="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between gap-6">
+        <div>
+          <div class="flex items-center gap-2 mb-3">
+            <div class="w-7 h-7 rounded-lg bg-brand-500 grid place-items-center text-white font-bold text-sm">N</div>
+            <span class="font-bold text-white">Nutri</span>
+          </div>
+          <p>© <span id="year"></span> Nutri. Feito no Brasil.</p>
+        </div>
+        <div class="flex gap-6">
+          <a href="/privacidade.html" class="hover:text-white">Privacidade</a>
+          <a href="/termos.html" class="hover:text-white">Termos</a>
+          <a href="mailto:contato@nutri.app.br" class="hover:text-white">Contato</a>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

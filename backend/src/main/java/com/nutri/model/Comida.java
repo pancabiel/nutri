@@ -8,6 +8,7 @@ public record Comida(
     UUID id,
     String name,
     List<ComidaProduto> items,
+    Double yieldGrams,
     OffsetDateTime createdAt
 ) {
     public record ComidaProduto(UUID produtoId, double quantityGrams) {}

@@ -85,7 +85,10 @@ public class ChatService {
                 p.name(),
                 qty,
                 p.calories(),
-                p.protein()
+                p.protein(),
+                isProduto ? "g" : "porcao",
+                p.carbs(),
+                p.fat()
             )));
         }
         var totalCal = items.stream().mapToInt(AiService.ParsedItem::calories).sum();
@@ -108,19 +111,23 @@ public class ChatService {
             var cid = parseUuid(p.matched_id());
             var comida = cid == null ? null : comById.get(cid);
             if (comida == null) { out.add(p); continue; }
-            double cal = 0, prot = 0;
+            double cal = 0, prot = 0, carbs = 0, fat = 0;
             for (var ci : comida.items()) {
                 var prod = prodById.get(ci.produtoId());
                 if (prod == null) continue;
                 cal += prod.caloriesPerGram() * ci.quantityGrams();
                 prot += prod.proteinPerGram() * ci.quantityGrams();
+                if (prod.carbsPerGram() != null) carbs += prod.carbsPerGram() * ci.quantityGrams();
+                if (prod.fatPerGram()   != null) fat   += prod.fatPerGram()   * ci.quantityGrams();
             }
             double servings = p.quantity() > 0 ? p.quantity() : 1.0;
             out.add(new AiService.ParsedItem(
                 p.type(), p.matched_id(), p.name(),
                 p.quantity(), p.estimated_grams(),
                 (int) Math.round(cal * servings),
-                Math.round(prot * servings * 10.0) / 10.0
+                Math.round(prot * servings * 10.0) / 10.0,
+                Math.round(carbs * servings * 10.0) / 10.0,
+                Math.round(fat * servings * 10.0) / 10.0
             ));
         }
         return out;

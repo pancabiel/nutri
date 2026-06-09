@@ -2,3 +2,14 @@
 .env.local
 .DS_Store
 *.log
+
+# Local TODO/Kanban hub (not part of the build)
+hub/
+
+# Playwright E2E
+.env.e2e
+**/tests/e2e/.auth/
+playwright-report/
+test-results/
+blob-report/
+**/playwright/.cache/

@@ -21,7 +21,15 @@ export default function ProdutosScreen() {
     setEditing(null);
     refreshProdutos();
   }
-  async function remove(id) { await api.produtos.remove(id); showToast("Produto removido"); refreshProdutos(); }
+  async function remove(id) {
+    try {
+      await api.produtos.remove(id);
+      showToast("Produto removido");
+      refreshProdutos();
+    } catch (e) {
+      showToast(e?.message || "Não foi possível remover o produto.", "error");
+    }
+  }
   function askRemove(p) {
     setConfirm({
       detail: p.brand ? `${p.name} · ${p.brand}` : p.name,

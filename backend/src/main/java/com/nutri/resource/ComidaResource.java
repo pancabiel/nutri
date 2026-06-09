@@ -3,6 +3,7 @@ package com.nutri.resource;
 import com.nutri.auth.CurrentUser;
 import com.nutri.model.Comida;
 import com.nutri.repository.ComidaRepository;
+import com.nutri.service.ComidaService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -17,6 +18,7 @@ import java.util.UUID;
 public class ComidaResource {
 
     @Inject ComidaRepository repo;
+    @Inject ComidaService comidaService;
     @Inject CurrentUser user;
 
     @GET
@@ -25,6 +27,18 @@ public class ComidaResource {
         var uid = user.userId();
         return query != null && !query.isBlank() ? repo.search(uid, query, limit) : repo.all(uid);
     }
+
+    /**
+     * Build a draft comida (sub-receita) from a free-text recipe. Matches ingredients against
+     * the user's produtos and auto-creates a produto for anything new; yield defaults to the
+     * sum of ingredient grams. Returns a non-persisted draft the frontend opens for review.
+     */
+    @POST @Path("parse")
+    public ComidaService.Draft parse(ParseRequest req) {
+        return comidaService.fromText(req == null ? null : req.text());
+    }
+
+    public record ParseRequest(String text) {}
 
     @GET @Path("{id}")
     public Response byId(@PathParam("id") UUID id) {

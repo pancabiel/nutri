@@ -117,7 +117,15 @@ public class ProdutoRepository {
             s.setObject(1, id);
             s.setObject(2, userId);
             s.executeUpdate();
-        } catch (SQLException e) { throw new RuntimeException(e); }
+        } catch (SQLException e) {
+            // FK with `on delete restrict` (comida_produtos) / `no action` (meal_items,
+            // meal_template_items) — the produto is still referenced. Surface a 409 so the
+            // UI can explain it instead of failing silently behind a 500.
+            if ("23503".equals(e.getSQLState())) {
+                throw new InUseException("Produto em uso em uma comida, marmita ou dia registrado. Remova-o de lá antes de excluir.");
+            }
+            throw new RuntimeException(e);
+        }
     }
 
     private static void setNullableDouble(PreparedStatement s, int i, Double v) throws SQLException {

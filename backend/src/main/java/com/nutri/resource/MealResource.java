@@ -57,5 +57,19 @@ public class MealResource {
         return Response.noContent().build();
     }
 
+    /**
+     * Meal-prep "aplicar na semana": replicate a set of (already snapshotted) items into
+     * one section across many dates. The frontend resolves absolute dates and computes the
+     * macro snapshots from the template; the backend just validates ownership and inserts.
+     */
+    @POST @Path("batch")
+    public BatchResult batch(BatchRequest req) {
+        var dates = req.dates().stream().map(LocalDate::parse).toList();
+        int inserted = repo.batchAdd(user.userId(), req.section(), dates, req.items());
+        return new BatchResult(inserted, dates.size());
+    }
+
     public record NewSection(String name) {}
+    public record BatchRequest(String section, List<String> dates, List<MealDay.MealItem> items) {}
+    public record BatchResult(int inserted, int days) {}
 }

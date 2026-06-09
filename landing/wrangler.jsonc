@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nutri-landing",
+  "compatibility_date": "2026-05-24",
+  "observability": { "enabled": true },
+  "assets": {
+    "not_found_handling": "404-page"
+  }
+}

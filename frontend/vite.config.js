@@ -24,6 +24,9 @@ export default defineConfig({
       ]
     },
     workbox: {
+      // Pull our push/notificationclick listeners into the generated SW without
+      // replacing the Workbox runtime caching config below.
+      importScripts: ["/push-handler.js"],
       runtimeCaching: [
         {
           urlPattern: ({ url }) => url.pathname.startsWith("/api"),

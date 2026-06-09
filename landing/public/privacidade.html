@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Privacidade — Nutri</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 720px; margin: 0 auto; padding: 40px 20px; color: #0f172a; line-height: 1.65; }
+      h1 { font-size: 2rem; margin-bottom: .5rem; }
+      h2 { font-size: 1.25rem; margin-top: 2rem; }
+      p, li { color: #334155; }
+      a { color: #059669; }
+      .meta { color: #64748b; font-size: .9rem; }
+    </style>
+  </head>
+  <body>
+    <p><a href="/">← Voltar</a></p>
+    <h1>Política de Privacidade</h1>
+    <p class="meta">Última atualização: 24 de maio de 2026</p>
+
+    <h2>1. Quem somos</h2>
+    <p>Nutri é um serviço de registro alimentar com IA, operado por Gabriel Panca Ribeiro (pessoa física, CPF disponível mediante solicitação), com sede no Brasil. Contato: <a href="mailto:contato@nutri.app.br">contato@nutri.app.br</a>.</p>
+
+    <h2>2. Dados que coletamos</h2>
+    <ul>
+      <li><strong>Conta:</strong> email (via Supabase Auth) e nome (opcional, do provedor OAuth se você entrar com Google).</li>
+      <li><strong>Onboarding:</strong> idade, sexo, peso, altura, nível de atividade e meta — usados para calcular sua meta calórica.</li>
+      <li><strong>Refeições:</strong> texto digitado por você, fotos enviadas para análise, e as refeições registradas.</li>
+      <li><strong>Pagamento:</strong> nenhum dado de cartão é armazenado por nós — fica todo na Stripe.</li>
+      <li><strong>Uso:</strong> contadores de uso da IA (para enforcement de limites) e logs operacionais padrão.</li>
+    </ul>
+
+    <h2>3. Como usamos</h2>
+    <p>Os dados são usados exclusivamente para operar o serviço (analisar suas refeições, mostrar seu histórico, cobrar sua assinatura). Não vendemos dados. Não os usamos para treinar modelos de IA. Suas fotos e textos são enviados para a Anthropic (provedora do modelo Claude) apenas para processar o pedido — a Anthropic, por contrato, não retém esses dados para treinamento.</p>
+
+    <h2>4. Bases legais (LGPD)</h2>
+    <ul>
+      <li><strong>Execução de contrato</strong> — para operar o app e processar pagamentos.</li>
+      <li><strong>Consentimento</strong> — para envio de comunicações de marketing (opcional).</li>
+      <li><strong>Legítimo interesse</strong> — para prevenção de fraude e segurança.</li>
+    </ul>
+
+    <h2>5. Seus direitos</h2>
+    <p>Você pode, a qualquer momento:</p>
+    <ul>
+      <li>Acessar e corrigir seus dados via o app.</li>
+      <li>Exportar seus dados — solicite por email.</li>
+      <li><strong>Excluir sua conta</strong> diretamente em Configurações → Excluir minha conta. A exclusão é imediata e em cascata (todos os dados associados são apagados).</li>
+    </ul>
+
+    <h2>6. Compartilhamento com terceiros</h2>
+    <ul>
+      <li><strong>Supabase</strong> (banco e auth)</li>
+      <li><strong>Anthropic</strong> (modelo de IA)</li>
+      <li><strong>Stripe</strong> (pagamentos)</li>
+      <li><strong>Cloudflare</strong> (hospedagem)</li>
+      <li><strong>AWS</strong> (backend serverless)</li>
+    </ul>
+    <p>Todos atuam como operadores de dados conforme contratos padrão e LGPD.</p>
+
+    <h2>7. Retenção</h2>
+    <p>Seus dados ficam armazenados enquanto sua conta existir. Após exclusão da conta, são apagados imediatamente (pode haver retenção residual de até 30 dias em backups).</p>
+
+    <h2>8. Mudanças</h2>
+    <p>Atualizações desta política serão comunicadas por email com pelo menos 7 dias de antecedência.</p>
+  </body>
+</html>

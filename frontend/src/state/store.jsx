@@ -8,9 +8,10 @@ export function StoreProvider({ children }) {
   const [produtos, setProdutos] = useState([]);
   const [comidas, setComidas] = useState([]);
 
-  const showToast = useCallback((msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2200);
+  // type: "success" (default, green check) | "error" (red, longer dwell so the user reads it).
+  const showToast = useCallback((msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), type === "error" ? 4000 : 2200);
   }, []);
 
   const refreshProdutos = useCallback(async () => setProdutos(await api.produtos.list()), []);
