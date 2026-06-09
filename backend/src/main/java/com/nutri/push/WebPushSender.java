@@ -59,7 +59,10 @@ public class WebPushSender {
     private static final Logger LOG = Logger.getLogger(WebPushSender.class);
     private static final Base64.Encoder B64 = Base64.getUrlEncoder().withoutPadding();
     private static final Base64.Decoder B64D = Base64.getUrlDecoder();
-    private static final SecureRandom RNG = new SecureRandom();
+    // NB: SecureRandom is created on demand inside the (runtime-only) call paths below,
+    // never in a static/instance initializer. A SecureRandom captured into a static field
+    // gets baked into the GraalVM image heap at build time (cached seed) and the native
+    // build fails outright — so keep randomness construction lazy and local.
 
     /** Record size advertised in the aes128gcm header; our payloads are a single record well under this. */
     private static final int RECORD_SIZE = 4096;
@@ -126,7 +129,7 @@ public class WebPushSender {
 
             KeyPair ephemeral = generateEphemeral();
             byte[] salt = new byte[16];
-            RNG.nextBytes(salt);
+            new SecureRandom().nextBytes(salt);
             byte[] body = encryptPayload(uaPublic, authSecret, plaintext, salt, ephemeral);
 
             String vapidJwt = buildVapidJwt(originOf(sub.endpoint()));
@@ -270,7 +273,7 @@ public class WebPushSender {
 
     static KeyPair generateEphemeral() throws Exception {
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC");
-        kpg.initialize(new ECGenParameterSpec("secp256r1"), RNG);
+        kpg.initialize(new ECGenParameterSpec("secp256r1"), new SecureRandom());
         return kpg.generateKeyPair();
     }
 
