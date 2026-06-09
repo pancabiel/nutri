@@ -62,7 +62,7 @@ Parameters:
   VapidSubject:
     Type: String
     Default: 'mailto:pancabiel@gmail.com'
-    Description: VAPID contact (mailto: or https:) sent in the push JWT sub claim.
+    Description: 'VAPID contact (mailto: or https:) sent in the push JWT sub claim.'
 
 Globals:
   Api:
