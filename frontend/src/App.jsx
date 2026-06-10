@@ -30,7 +30,7 @@ function Shell({ onOpenSettings, isPro }) {
   };
 
   return (
-    <div className="h-[100dvh] w-full flex flex-col bg-white relative overflow-hidden">
+    <div className="h-full w-full flex flex-col bg-white relative overflow-hidden">
       <header className="shrink-0 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),8px)] pb-2 border-b border-slate-100">
         <span className="text-sm font-semibold text-slate-700">Nutri</span>
         <div className="flex items-center gap-2">
@@ -58,7 +58,7 @@ function Shell({ onOpenSettings, isPro }) {
         {screen !== "chat" && otherScreens[screen]}
       </div>
 
-      <nav className="shrink-0 border-t border-slate-200 bg-white/95 backdrop-blur px-2 pt-1.5 pb-[max(env(safe-area-inset-bottom),8px)]">
+      <nav className="shrink-0 border-t border-slate-200 bg-white px-2 pt-1.5 pb-[max(env(safe-area-inset-bottom),8px)]">
         <div className="grid grid-cols-5 gap-1 max-w-md mx-auto">
           <NavBtn active={screen === "chat"}                                onClick={() => setScreen("chat")}     icon="chat"     label="Chat"/>
           <NavBtn active={screen === "calendar" || screen === "day"}        onClick={() => setScreen("calendar")} icon="calendar" label="Agenda"/>
@@ -189,7 +189,7 @@ export default function App() {
 
 function Splash() {
   return (
-    <div className="h-[100dvh] w-full flex items-center justify-center bg-white">
+    <div className="h-full w-full flex items-center justify-center bg-white">
       <div className="text-slate-400 text-sm">Carregando…</div>
     </div>
   );

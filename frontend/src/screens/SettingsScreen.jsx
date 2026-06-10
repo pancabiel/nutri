@@ -155,7 +155,7 @@ export default function SettingsScreen({ onClose, profile: profileProp, email: e
   }
 
   return (
-    <div className="h-[100dvh] w-full flex flex-col bg-white">
+    <div className="h-full w-full flex flex-col bg-white">
       <header className="flex items-center gap-3 px-4 pt-[max(env(safe-area-inset-top),12px)] pb-3 border-b border-slate-100">
         <button onClick={onClose} className="text-slate-500 text-sm">‹ Voltar</button>
         <h1 className="text-base font-semibold text-slate-900">Configurações</h1>

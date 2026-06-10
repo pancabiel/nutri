@@ -49,7 +49,7 @@ export default function ProdutosScreen() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50">
-      <div className="shrink-0 px-5 pt-[max(env(safe-area-inset-top),20px)] pb-3 bg-white border-b border-slate-200">
+      <div className="shrink-0 px-5 pt-5 pb-3 bg-white border-b border-slate-200">
         <div className="flex items-start justify-between mb-3">
           <div>
             <h1 className="text-[22px] font-bold text-slate-900">Produtos</h1>

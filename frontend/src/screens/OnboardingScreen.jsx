@@ -66,7 +66,7 @@ export default function OnboardingScreen({ onDone }) {
   }
 
   return (
-    <div className="min-h-[100dvh] w-full flex flex-col bg-gradient-to-b from-emerald-50 via-white to-white px-6 pt-[max(env(safe-area-inset-top),24px)] pb-[max(env(safe-area-inset-bottom),24px)]">
+    <div className="min-h-full w-full flex flex-col bg-gradient-to-b from-emerald-50 via-white to-white px-6 pt-[max(env(safe-area-inset-top),24px)] pb-[max(env(safe-area-inset-bottom),24px)]">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-1.5 flex-1">
           {[0, 1, 2, 3].map(i => (

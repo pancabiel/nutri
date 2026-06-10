@@ -3,6 +3,20 @@
 @tailwind utilities;
 
 html, body, #root { height: 100%; }
+/* iOS standalone PWA bug: it computes 100%, 100dvh, 100svh and
+   -webkit-fill-available as the *small* viewport (full screen minus the top
+   inset — e.g. 793 of 852), so the app ends ~59px short and the bottom strip
+   leaks the page background under the footer. Only 100vh / 100lvh report the
+   true full screen there, so pin the root to 100vh when installed. Scoped to
+   standalone because in a normal browser tab 100vh hides content behind the
+   URL bar. */
+@media (display-mode: standalone) {
+  html { height: 100vh; }
+}
+/* iOS homescreen apps don't always match the media query above (legacy
+   apple-mobile-web-app-capable mode). main.jsx adds this class from
+   navigator.standalone so the fix still applies. */
+html.ios-standalone { height: 100vh; }
 html, body {
   /* iOS PWA: stop the rubber-band scroll that lets the user drag the footer up */
   overscroll-behavior: none;
@@ -15,9 +29,12 @@ body {
   color: #0f172a;
   -webkit-font-smoothing: antialiased;
   /* Lock body so internal scrollers (chat list, day view, etc.) handle scroll,
-     not the page itself — prevents the standalone PWA from scrolling the chrome. */
-  position: fixed;
-  inset: 0;
+     not the page itself — prevents the standalone PWA from scrolling the chrome.
+     We use overflow:hidden (NOT position:fixed) for the lock: a fixed inset:0
+     body sizes to the initial containing block and ignores html's height, so
+     the 100vh override above can't cascade through it and the app stays at the
+     short 793 viewport. Normal-flow body + overflow:hidden locks scroll just as
+     well and lets html's 100vh height flow down to #root. */
   overflow: hidden;
 }
 #root { overflow: hidden; }

@@ -49,7 +49,7 @@ export default function ChatScreen({ onOpenDay }) {
 
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-emerald-50 via-white to-white">
-      <div className="px-5 pt-[max(env(safe-area-inset-top),12px)] pb-2 flex items-center justify-between shrink-0">
+      <div className="px-5 pt-3 pb-2 flex items-center justify-between shrink-0">
         <div>
           <div className="text-[11px] uppercase tracking-wider text-emerald-600 font-semibold">Nutri AI</div>
           <h1 className="text-[22px] font-bold text-slate-900 leading-tight">Bom dia</h1>

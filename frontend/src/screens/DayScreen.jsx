@@ -66,7 +66,7 @@ export default function DayScreen({ date, onBack }) {
 
   return (
     <div className="flex flex-col h-full bg-slate-50">
-      <div className="shrink-0 bg-white border-b border-slate-200 px-3 pt-[max(env(safe-area-inset-top),12px)] pb-4">
+      <div className="shrink-0 bg-white border-b border-slate-200 px-3 pt-3 pb-4">
         <div className="flex items-center gap-2 mb-2">
           <button onClick={onBack} className="w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center"><Icon name="back"/></button>
           <div>

@@ -36,7 +36,7 @@ export default function LoginScreen() {
   }
 
   return (
-    <div className="min-h-[100dvh] w-full flex flex-col bg-gradient-to-br from-emerald-50 via-white to-teal-50 px-6 pt-[max(env(safe-area-inset-top),24px)] pb-[max(env(safe-area-inset-bottom),24px)] relative overflow-hidden">
+    <div className="min-h-full w-full flex flex-col bg-gradient-to-br from-emerald-50 via-white to-teal-50 px-6 pt-[max(env(safe-area-inset-top),24px)] pb-[max(env(safe-area-inset-bottom),24px)] relative overflow-hidden">
       {/* Decorative blobs */}
       <div aria-hidden className="pointer-events-none absolute -top-24 -right-24 w-72 h-72 rounded-full bg-emerald-200/40 blur-3xl" />
       <div aria-hidden className="pointer-events-none absolute -bottom-32 -left-20 w-80 h-80 rounded-full bg-teal-200/40 blur-3xl" />
