@@ -9,6 +9,7 @@ hub/
 # Installed agent skills (machine-local tooling, not source)
 .agents/
 .claude/skills/
+.claude/settings.local.json
 skills-lock.json
 
 # Playwright E2E

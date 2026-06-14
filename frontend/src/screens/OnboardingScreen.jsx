@@ -66,8 +66,8 @@ export default function OnboardingScreen({ onDone }) {
   }
 
   return (
-    <div className="min-h-full w-full flex flex-col bg-gradient-to-b from-emerald-50 via-white to-white px-6 pt-[max(env(safe-area-inset-top),24px)] pb-[max(env(safe-area-inset-bottom),24px)]">
-      <div className="flex items-center justify-between mb-4">
+    <div className="min-h-full w-full flex flex-col items-center bg-gradient-to-b from-emerald-50 via-white to-white px-6 pt-[max(env(safe-area-inset-top),24px)] pb-[max(env(safe-area-inset-bottom),24px)]">
+      <div className="w-full max-w-md flex items-center justify-between mb-4">
         <div className="flex items-center gap-1.5 flex-1">
           {[0, 1, 2, 3].map(i => (
             <div
@@ -84,7 +84,7 @@ export default function OnboardingScreen({ onDone }) {
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col">
+      <div className="w-full max-w-md flex-1 flex flex-col">
         {step === 0 && (
           <Step
             badge="👋 Oi!"
@@ -206,7 +206,7 @@ export default function OnboardingScreen({ onDone }) {
         {error && <div className="text-sm text-rose-600 text-center mt-3">{error}</div>}
       </div>
 
-      <div className="flex gap-2 mt-6">
+      <div className="w-full max-w-md flex gap-2 mt-6">
         {step > 0 && (
           <button
             onClick={back}

@@ -47,46 +47,69 @@ function Shell({ onOpenSettings, isPro, profile, currentUserId, onProfileChanged
     }
   }
 
-  return (
-    <div className="h-full w-full flex flex-col bg-white relative overflow-hidden">
-      <header className="shrink-0 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),8px)] pb-2 border-b border-slate-100">
-        <span className="text-sm font-semibold text-slate-700">Nutri</span>
-        <div className="flex items-center gap-2">
-          {isPro ? (
-            <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full inline-flex items-center gap-1">
-              <Icon name="crown" className="w-3 h-3" /> Pro
-            </span>
-          ) : (
-            <button
-              onClick={() => window.dispatchEvent(new CustomEvent("nutri:open-upgrade"))}
-              className="text-[10px] uppercase tracking-wider font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-full inline-flex items-center gap-1"
-            >
-              <Icon name="lock" className="w-3 h-3" /> Free
-            </button>
-          )}
-          <button onClick={onOpenSettings} className="text-slate-500 p-1">
-            <Icon name="cog" className="w-5 h-5" />
-          </button>
-        </div>
-      </header>
-      <div className="flex-1 overflow-hidden relative">
-        {SCREENS.map((name) =>
-          visited.has(name) ? (
-            <div key={name} className={screen === name ? "absolute inset-0" : "hidden"}>
-              {renderScreen(name)}
-            </div>
-          ) : null
-        )}
-      </div>
+  // Nav items shared between the desktop sidebar and the mobile bottom bar so the two
+  // can never drift out of sync.
+  const navItems = [
+    { key: "chat",       active: screen === "chat",                          onClick: () => setScreen("chat"),       icon: "chat",     label: "Chat" },
+    { key: "agenda",     active: screen === "day" || screen === "calendar",  onClick: openAgenda,                    icon: "calendar", label: "Agenda" },
+    { key: "biblioteca", active: screen === "biblioteca",                    onClick: () => setScreen("biblioteca"), icon: "box",      label: "Biblioteca" },
+    { key: "feed",       active: screen === "feed",                          onClick: () => setScreen("feed"),       icon: "users",    label: "Feed" },
+  ];
 
-      <nav className="shrink-0 border-t border-slate-200 bg-white px-2 pt-1.5 pb-[max(env(safe-area-inset-bottom),8px)]">
-        <div className="grid grid-cols-4 gap-1 max-w-md mx-auto">
-          <NavBtn active={screen === "chat"}                            onClick={() => setScreen("chat")}        icon="chat"     label="Chat"/>
-          <NavBtn active={screen === "day" || screen === "calendar"}    onClick={openAgenda}                     icon="calendar" label="Agenda"/>
-          <NavBtn active={screen === "biblioteca"}                      onClick={() => setScreen("biblioteca")}  icon="box"      label="Biblioteca"/>
-          <NavBtn active={screen === "feed"}                            onClick={() => setScreen("feed")}        icon="users"    label="Feed"/>
+  return (
+    // Outer rail: a sidebar (≥md) next to a centered content column. On phones the
+    // sidebar is hidden and the column fills the screen with the bottom tab bar.
+    <div className="h-full w-full flex bg-slate-100">
+      <aside className="hidden md:flex md:flex-col w-56 shrink-0 bg-white border-r border-slate-200 px-3 py-4">
+        <div className="px-2 mb-6 text-xl font-bold text-slate-800">Nutri</div>
+        <nav className="flex flex-col gap-1">
+          {navItems.map((it) => (
+            <SideBtn key={it.key} active={it.active} onClick={it.onClick} icon={it.icon} label={it.label} />
+          ))}
+        </nav>
+      </aside>
+
+      <div className="flex-1 min-w-0 h-full flex justify-center">
+        <div className="w-full max-w-[640px] h-full flex flex-col bg-white relative overflow-hidden md:border-x md:border-slate-200">
+          <header className="shrink-0 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),8px)] pb-2 border-b border-slate-100">
+            <span className="text-sm font-semibold text-slate-700">Nutri</span>
+            <div className="flex items-center gap-2">
+              {isPro ? (
+                <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full inline-flex items-center gap-1">
+                  <Icon name="crown" className="w-3 h-3" /> Pro
+                </span>
+              ) : (
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent("nutri:open-upgrade"))}
+                  className="text-[10px] uppercase tracking-wider font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-full inline-flex items-center gap-1"
+                >
+                  <Icon name="lock" className="w-3 h-3" /> Free
+                </button>
+              )}
+              <button onClick={onOpenSettings} className="text-slate-500 p-1">
+                <Icon name="cog" className="w-5 h-5" />
+              </button>
+            </div>
+          </header>
+          <div className="flex-1 overflow-hidden relative">
+            {SCREENS.map((name) =>
+              visited.has(name) ? (
+                <div key={name} className={screen === name ? "absolute inset-0" : "hidden"}>
+                  {renderScreen(name)}
+                </div>
+              ) : null
+            )}
+          </div>
+
+          <nav className="md:hidden shrink-0 border-t border-slate-200 bg-white px-2 pt-1.5 pb-[max(env(safe-area-inset-bottom),8px)]">
+            <div className="grid grid-cols-4 gap-1 max-w-md mx-auto">
+              {navItems.map((it) => (
+                <NavBtn key={it.key} active={it.active} onClick={it.onClick} icon={it.icon} label={it.label} />
+              ))}
+            </div>
+          </nav>
         </div>
-      </nav>
+      </div>
 
       {toast && (
         <div className="pointer-events-none fixed left-1/2 -translate-x-1/2 bottom-24 z-50 fade-in max-w-[90%]">
@@ -105,6 +128,19 @@ function NavBtn({ active, onClick, icon, label }) {
     <button onClick={onClick} className={`flex flex-col items-center gap-1 py-1.5 rounded-xl transition-colors ${active ? "text-emerald-600" : "text-slate-400"}`}>
       <Icon name={icon} className="w-6 h-6" />
       <span className="text-[10px] font-medium">{label}</span>
+    </button>
+  );
+}
+
+// Sidebar nav row (desktop). Horizontal icon + label, full-width hit target.
+function SideBtn({ active, onClick, icon, label }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${active ? "bg-emerald-50 text-emerald-700" : "text-slate-500 hover:bg-slate-100"}`}
+    >
+      <Icon name={icon} className="w-5 h-5 shrink-0" />
+      <span>{label}</span>
     </button>
   );
 }

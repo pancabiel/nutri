@@ -121,7 +121,7 @@ export default function DayScreen({ date, onBack, onViewMonth }) {
         <button onClick={() => setNewSection(true)} className="w-full bg-white border border-dashed border-slate-300 rounded-2xl py-4 text-slate-500 font-semibold flex items-center justify-center gap-2"><Icon name="plus" className="w-4 h-4"/> Nova seção</button>
       </div>
 
-      <button onClick={() => setChatOpen(true)} className="absolute right-4 bottom-24 w-14 h-14 rounded-full bg-emerald-500 text-white shadow-xl shadow-emerald-500/40 flex items-center justify-center"><Icon name="chat" className="w-6 h-6"/></button>
+      <button onClick={() => setChatOpen(true)} className="absolute right-4 bottom-24 md:bottom-6 w-14 h-14 rounded-full bg-emerald-500 text-white shadow-xl shadow-emerald-500/40 flex items-center justify-center"><Icon name="chat" className="w-6 h-6"/></button>
 
       {addingTo && <AddItemSheet section={addingTo} produtos={produtos} comidas={comidas} onClose={() => setAddingTo(null)} onAdded={() => { setAddingTo(null); showToast(`Adicionado em ${addingTo.name}`); reload(); }} />}
       {editingItem && <AddItemSheet existing={editingItem} produtos={produtos} comidas={comidas} onClose={() => setEditingItem(null)} onAdded={() => { setEditingItem(null); showToast("Item atualizado"); reload(); }} onRegisterProduto={(it) => { setEditingItem(null); setRegisteringItem(it); }} />}

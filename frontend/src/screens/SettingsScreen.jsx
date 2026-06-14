@@ -161,12 +161,15 @@ export default function SettingsScreen({ onClose, profile: profileProp, email: e
 
   return (
     <div className="h-full w-full flex flex-col bg-white">
-      <header className="flex items-center gap-3 px-4 pt-[max(env(safe-area-inset-top),12px)] pb-3 border-b border-slate-100">
-        <button onClick={onClose} className="text-slate-500 text-sm">‹ Voltar</button>
-        <h1 className="text-base font-semibold text-slate-900">Configurações</h1>
+      <header className="shrink-0 px-4 pt-[max(env(safe-area-inset-top),12px)] pb-3 border-b border-slate-100">
+        <div className="w-full max-w-2xl mx-auto flex items-center gap-3">
+          <button onClick={onClose} className="text-slate-500 text-sm">‹ Voltar</button>
+          <h1 className="text-base font-semibold text-slate-900">Configurações</h1>
+        </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-[max(env(safe-area-inset-bottom),24px)] flex flex-col gap-6">
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-[max(env(safe-area-inset-bottom),24px)]">
+        <div className="w-full max-w-2xl mx-auto flex flex-col gap-6">
         <section>
           <div className="text-xs uppercase tracking-wide text-slate-400 mb-2">Conta</div>
           <div className="rounded-xl border border-slate-200 bg-white">
@@ -334,6 +337,7 @@ export default function SettingsScreen({ onClose, profile: profileProp, email: e
             </div>
           )}
         </section>
+        </div>
       </div>
 
       {editingSocial && (
