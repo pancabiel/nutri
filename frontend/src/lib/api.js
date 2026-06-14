@@ -93,6 +93,30 @@ export const api = {
   profile: {
     get:    ()                => http(`/profile`),
     update: (u)               => http(`/profile`, { method: "PUT", body: JSON.stringify(u) }),
+    updateSocial: (s)         => http(`/profile/social`, { method: "PUT", body: JSON.stringify(s) }),
+  },
+  // social feed
+  feed: {
+    list:   ({ before, beforeId, limit } = {}) => {
+      const p = new URLSearchParams();
+      if (before)   p.set("before", before);
+      if (beforeId) p.set("beforeId", beforeId);
+      if (limit)    p.set("limit", limit);
+      const qs = p.toString();
+      return http(`/feed${qs ? `?${qs}` : ""}`);
+    },
+    create: (post)            => http(`/feed/posts`, { method: "POST", body: JSON.stringify(post) }),
+    remove: (id)              => http(`/feed/posts/${id}`, { method: "DELETE" }),
+    like:   (id)              => http(`/feed/posts/${id}/like`, { method: "POST" }),
+    unlike: (id)              => http(`/feed/posts/${id}/like`, { method: "DELETE" }),
+    save:   (id)              => http(`/feed/posts/${id}/save`, { method: "POST" }),
+  },
+  // social graph / discovery
+  social: {
+    searchUsers: (q)          => http(`/users/search?q=${encodeURIComponent(q)}`),
+    getProfile:  (username)   => http(`/users/${encodeURIComponent(username)}`),
+    follow:      (id)         => http(`/users/${id}/follow`, { method: "POST" }),
+    unfollow:    (id)         => http(`/users/${id}/follow`, { method: "DELETE" }),
   },
   // account (LGPD)
   account: {

@@ -197,7 +197,8 @@ class AiServiceCapTest {
         volatile boolean isPro = false;
         @Override public Profile getOrCreate(UUID userId) {
             return new Profile(userId, isPro, isPro ? "active" : null,
-                null, null, null, null, null, null, null, null, null, true);
+                null, null, null, null, null, null, null, null, null, true,
+                null, null, null, null);
         }
     }
 

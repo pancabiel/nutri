@@ -46,6 +46,19 @@ public class ProdutoRepository {
         return out;
     }
 
+    /** Exact (case-insensitive) name match — used by SaveRecipeService to dedup produtos. */
+    public Optional<Produto> byName(UUID userId, String name) {
+        if (name == null) return Optional.empty();
+        try (var c = ds.getConnection();
+             var s = c.prepareStatement("select * from produtos where user_id = ? and lower(name) = lower(?) order by created_at asc limit 1")) {
+            s.setObject(1, userId);
+            s.setString(2, name);
+            try (var rs = s.executeQuery()) {
+                return rs.next() ? Optional.of(map(rs)) : Optional.empty();
+            }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
     public Optional<Produto> byId(UUID userId, UUID id) {
         try (var c = ds.getConnection();
              var s = c.prepareStatement("select * from produtos where id = ? and user_id = ?")) {

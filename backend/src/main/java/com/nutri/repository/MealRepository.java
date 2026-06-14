@@ -222,6 +222,42 @@ public class MealRepository {
         return out;
     }
 
+    /**
+     * A single section (name + items) owned by the user, or empty. Used by the feed
+     * to snapshot a logged "prato" the author wants to share.
+     */
+    public Optional<MealDay.MealSection> sectionById(UUID userId, UUID sectionId) {
+        var sql = """
+            select s.id as section_id, s.name as section_name, s.order_index,
+                   i.id as item_id, i.produto_id, i.comida_id, i.name as item_name,
+                   i.quantity, i.calories, i.protein, i.unit, i.carbs, i.fat
+              from meal_sections s
+              join meal_days d on d.id = s.meal_day_id
+              left join meal_items i on i.meal_section_id = s.id
+             where s.id = ? and d.user_id = ?
+             order by i.created_at asc""";
+        try (var c = ds.getConnection();
+             var s = c.prepareStatement(sql)) {
+            s.setObject(1, sectionId);
+            s.setObject(2, userId);
+            try (var rs = s.executeQuery()) {
+                MealDay.MealSection sec = null;
+                var items = new ArrayList<MealDay.MealItem>();
+                while (rs.next()) {
+                    if (sec == null) {
+                        sec = new MealDay.MealSection(
+                            (UUID) rs.getObject("section_id"),
+                            rs.getString("section_name"),
+                            rs.getInt("order_index"),
+                            items);
+                    }
+                    if (rs.getObject("item_id") != null) items.add(mapItem(rs));
+                }
+                return Optional.ofNullable(sec);
+            }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
     private UUID ensureDay(UUID userId, LocalDate date) {
         try (var c = ds.getConnection()) {
             try (var s = c.prepareStatement(

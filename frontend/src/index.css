@@ -48,3 +48,59 @@ body {
 .typing-dot:nth-child(2) { animation-delay: .2s; }
 .typing-dot:nth-child(3) { animation-delay: .4s; }
 @keyframes blink { 0%, 80%, 100% { opacity: .2;} 40% { opacity: 1;} }
+
+/* ---------------------------------------------------------------------------
+   Dark mode.
+   The app is written entirely in hardcoded light Tailwind utilities (bg-white,
+   text-slate-900, border-slate-200, …) with no dark: variants. Rather than
+   touch every component, we remap the neutral surfaces/text/borders (and the
+   light accent tints/gradients) when <html> carries the `.dark` class, set by
+   lib/theme.js. `.dark .bg-white` (specificity 0,2,0) overrides the base
+   utility (0,1,0) regardless of source order. Emerald/red/amber *text* accents
+   are left as-is — they read fine on dark. Default (no .dark class) is the
+   original light theme, untouched.
+   ------------------------------------------------------------------------- */
+html.dark { color-scheme: dark; }
+html.dark body { background: #0b1120; color: #e2e8f0; }
+
+/* Surfaces */
+.dark .bg-white      { background-color: #1e293b; }
+.dark .bg-slate-50   { background-color: #1e293b; }
+.dark .bg-slate-100  { background-color: #334155; }
+.dark .bg-slate-200  { background-color: #475569; }
+.dark .bg-slate-300  { background-color: #64748b; }
+.dark .bg-slate-400  { background-color: #94a3b8; }
+.dark .bg-slate-900  { background-color: #334155; }
+
+/* Text */
+.dark .text-slate-900 { color: #f1f5f9; }
+.dark .text-slate-800 { color: #e2e8f0; }
+.dark .text-slate-700 { color: #cbd5e1; }
+.dark .text-slate-600 { color: #cbd5e1; }
+.dark .text-slate-500 { color: #94a3b8; }
+.dark .text-slate-400 { color: #64748b; }
+.dark .text-slate-300 { color: #475569; }
+
+/* Borders + divides */
+.dark .border-slate-100 { border-color: #1e293b; }
+.dark .border-slate-200 { border-color: #334155; }
+.dark .border-slate-300 { border-color: #475569; }
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #1e293b; }
+
+/* Light accent tints → translucent dark accent fills */
+.dark .bg-emerald-50  { background-color: rgb(16 185 129 / 0.12); }
+.dark .bg-emerald-100 { background-color: rgb(16 185 129 / 0.18); }
+.dark .bg-amber-50    { background-color: rgb(245 158 11 / 0.12); }
+.dark .bg-amber-100   { background-color: rgb(245 158 11 / 0.18); }
+.dark .bg-rose-50     { background-color: rgb(244 63 94 / 0.12); }
+.dark .bg-red-50      { background-color: rgb(239 68 68 / 0.12); }
+
+/* Gradient stops used by the Pro / reminders panels (from-…-50 to/via-white) */
+.dark .from-emerald-50 { --tw-gradient-from: rgb(16 185 129 / 0.14) var(--tw-gradient-from-position); --tw-gradient-to: rgb(16 185 129 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+.dark .from-emerald-500 { --tw-gradient-from: #10b981 var(--tw-gradient-from-position); --tw-gradient-to: rgb(16 185 129 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+.dark .to-white   { --tw-gradient-to: #1e293b var(--tw-gradient-to-position); }
+.dark .via-white  { --tw-gradient-stops: var(--tw-gradient-from), #1e293b var(--tw-gradient-via-position), var(--tw-gradient-to); }
+
+/* Brighten emerald borders so panels stay visible on dark */
+.dark .border-emerald-300 { border-color: rgb(16 185 129 / 0.45); }
+.dark .border-emerald-200 { border-color: rgb(16 185 129 / 0.35); }

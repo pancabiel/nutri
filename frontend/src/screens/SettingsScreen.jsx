@@ -2,14 +2,18 @@ import { useEffect, useState } from "react";
 import Icon from "../components/Icon.jsx";
 import { api } from "../lib/api.js";
 import { supabase } from "../lib/supabase.js";
+import { getTheme, setTheme } from "../lib/theme.js";
+import SocialProfileEditor from "../components/SocialProfileEditor.jsx";
+import { Avatar } from "../components/PostCard.jsx";
 import { useStore } from "../state/store.jsx";
 import {
   isPushSupported, isStandalone, getPermission, isSubscribed,
   subscribe as pushSubscribe, unsubscribe as pushUnsubscribe, hasVapidKey,
 } from "../lib/push.js";
 
-export default function SettingsScreen({ onClose, profile: profileProp, email: emailProp = "" }) {
+export default function SettingsScreen({ onClose, profile: profileProp, email: emailProp = "", onProfileChanged }) {
   const [profile, setProfile] = useState(profileProp ?? null);
+  const [editingSocial, setEditingSocial] = useState(false);
   const [email, setEmail] = useState(emailProp);
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
@@ -17,6 +21,7 @@ export default function SettingsScreen({ onClose, profile: profileProp, email: e
   const [stage, setStage] = useState("idle"); // idle | confirming | deleting
   const [portalBusy, setPortalBusy] = useState(false);
   const [portalError, setPortalError] = useState("");
+  const [dark, setDark] = useState(getTheme() === "dark");
 
   const { showToast } = useStore() ?? {};
 
@@ -170,6 +175,41 @@ export default function SettingsScreen({ onClose, profile: profileProp, email: e
         </section>
 
         <section>
+          <div className="text-xs uppercase tracking-wide text-slate-400 mb-2">Perfil público</div>
+          <button
+            onClick={() => setEditingSocial(true)}
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 flex items-center gap-3 text-left"
+          >
+            <Avatar url={profile?.avatarUrl} name={profile?.displayName || profile?.username || email} />
+            <div className="flex-1 min-w-0">
+              {profile?.username ? (
+                <>
+                  <div className="font-semibold text-slate-800 truncate">{profile.displayName || profile.username}</div>
+                  <div className="text-[12px] text-slate-400 truncate">@{profile.username}</div>
+                </>
+              ) : (
+                <>
+                  <div className="font-semibold text-slate-800">Criar perfil público</div>
+                  <div className="text-[12px] text-slate-400">Escolha um @username para usar o Feed</div>
+                </>
+              )}
+            </div>
+            <Icon name="chevronR" className="w-4 h-4 text-slate-400" />
+          </button>
+        </section>
+
+        <section>
+          <div className="text-xs uppercase tracking-wide text-slate-400 mb-2">Aparência</div>
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+            <Toggle
+              label="Modo escuro"
+              checked={dark}
+              onChange={(v) => { setDark(v); setTheme(v ? "dark" : "light"); }}
+            />
+          </div>
+        </section>
+
+        <section>
           <div className="text-xs uppercase tracking-wide text-slate-400 mb-2">Plano</div>
           {profile?.isPro ? (
             <div className="rounded-2xl border border-emerald-300 bg-gradient-to-br from-emerald-50 to-white p-4">
@@ -295,6 +335,14 @@ export default function SettingsScreen({ onClose, profile: profileProp, email: e
           )}
         </section>
       </div>
+
+      {editingSocial && (
+        <SocialProfileEditor
+          profile={profile}
+          onClose={() => setEditingSocial(false)}
+          onSaved={(updated) => { setEditingSocial(false); setProfile(updated); onProfileChanged?.(updated); }}
+        />
+      )}
     </div>
   );
 }

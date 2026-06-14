@@ -1,6 +1,7 @@
 package com.nutri.repository;
 
 import com.nutri.model.Profile;
+import com.nutri.model.SocialProfile;
 import io.agroal.api.AgroalDataSource;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -11,6 +12,8 @@ import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -211,6 +214,122 @@ public class ProfileRepository {
         } catch (SQLException e) { throw new RuntimeException(e); }
     }
 
+    /**
+     * Sets the user's social identity. {@code username} is coalesced (never wiped by a
+     * null), the rest are set directly so display_name/avatar/bio can be cleared. Throws
+     * {@link UsernameTakenException} on the unique-index violation (23505) so the resource
+     * can return 409 instead of a 500.
+     */
+    public Profile setSocial(UUID userId, String username, String displayName, String avatarUrl, String bio) {
+        getOrCreate(userId);
+        var sql = """
+            update profiles
+               set username     = coalesce(?, username),
+                   display_name = ?,
+                   avatar_url   = ?,
+                   bio          = ?
+             where user_id = ?
+            returning *""";
+        try (var c = ds.getConnection();
+             var s = c.prepareStatement(sql)) {
+            s.setString(1, username);
+            s.setString(2, displayName);
+            s.setString(3, avatarUrl);
+            s.setString(4, bio);
+            s.setObject(5, userId);
+            try (var rs = s.executeQuery()) {
+                rs.next();
+                return map(rs);
+            }
+        } catch (SQLException e) {
+            if ("23505".equals(e.getSQLState())) {
+                throw new UsernameTakenException("Esse @username já está em uso.");
+            }
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Public social profile by username, with follower/following counts and the viewer's
+     * relationship. Selects ONLY the public columns — never the private/LGPD ones. Empty
+     * if no such username.
+     */
+    public Optional<SocialProfile> publicProfile(UUID viewerId, String username) {
+        var sql = """
+            select p.user_id, p.username, p.display_name, p.avatar_url, p.bio,
+                   (select count(*) from follows f where f.followee_id = p.user_id) as followers,
+                   (select count(*) from follows f where f.follower_id = p.user_id) as following,
+                   exists (select 1 from follows f where f.followee_id = p.user_id and f.follower_id = ?) as is_following
+              from profiles p
+             where lower(p.username) = lower(?)""";
+        try (var c = ds.getConnection();
+             var s = c.prepareStatement(sql)) {
+            s.setObject(1, viewerId);
+            s.setString(2, username);
+            try (var rs = s.executeQuery()) {
+                return rs.next() ? Optional.of(mapSocial(rs, viewerId)) : Optional.empty();
+            }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+    /** Public profile by user id (for follow/unfollow responses + author resolution). */
+    public Optional<SocialProfile> publicProfileById(UUID viewerId, UUID targetId) {
+        var sql = """
+            select p.user_id, p.username, p.display_name, p.avatar_url, p.bio,
+                   (select count(*) from follows f where f.followee_id = p.user_id) as followers,
+                   (select count(*) from follows f where f.follower_id = p.user_id) as following,
+                   exists (select 1 from follows f where f.followee_id = p.user_id and f.follower_id = ?) as is_following
+              from profiles p
+             where p.user_id = ?""";
+        try (var c = ds.getConnection();
+             var s = c.prepareStatement(sql)) {
+            s.setObject(1, viewerId);
+            s.setObject(2, targetId);
+            try (var rs = s.executeQuery()) {
+                return rs.next() ? Optional.of(mapSocial(rs, viewerId)) : Optional.empty();
+            }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+    /** Username search (prefix/substring) — only rows that have set a username. */
+    public List<SocialProfile> search(UUID viewerId, String query, int limit) {
+        var out = new ArrayList<SocialProfile>();
+        var sql = """
+            select p.user_id, p.username, p.display_name, p.avatar_url, p.bio,
+                   (select count(*) from follows f where f.followee_id = p.user_id) as followers,
+                   (select count(*) from follows f where f.follower_id = p.user_id) as following,
+                   exists (select 1 from follows f where f.followee_id = p.user_id and f.follower_id = ?) as is_following
+              from profiles p
+             where p.username is not null and lower(p.username) like ?
+             order by p.username asc
+             limit ?""";
+        try (var c = ds.getConnection();
+             var s = c.prepareStatement(sql)) {
+            s.setObject(1, viewerId);
+            s.setString(2, "%" + (query == null ? "" : query.toLowerCase()) + "%");
+            s.setInt(3, limit);
+            try (var rs = s.executeQuery()) {
+                while (rs.next()) out.add(mapSocial(rs, viewerId));
+            }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+        return out;
+    }
+
+    private static SocialProfile mapSocial(ResultSet rs, UUID viewerId) throws SQLException {
+        var uid = (UUID) rs.getObject("user_id");
+        return new SocialProfile(
+            uid,
+            rs.getString("username"),
+            rs.getString("display_name"),
+            rs.getString("avatar_url"),
+            rs.getString("bio"),
+            rs.getLong("followers"),
+            rs.getLong("following"),
+            rs.getBoolean("is_following"),
+            uid.equals(viewerId)
+        );
+    }
+
     private static void setNullableDouble(java.sql.PreparedStatement s, int i, Double v) throws SQLException {
         if (v == null) s.setNull(i, Types.DOUBLE); else s.setDouble(i, v);
     }
@@ -230,7 +349,11 @@ public class ProfileRepository {
             (Double) rs.getObject("activity_multiplier"),
             (Integer) rs.getObject("calorie_goal"),
             (Double) rs.getObject("protein_goal"),
-            rs.getBoolean("onboarding_complete")
+            rs.getBoolean("onboarding_complete"),
+            rs.getString("username"),
+            rs.getString("display_name"),
+            rs.getString("avatar_url"),
+            rs.getString("bio")
         );
     }
 

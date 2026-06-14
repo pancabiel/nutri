@@ -11,7 +11,7 @@ import { comidaTotals, comidaPerGram } from "../lib/macros.js";
 
 const SECTIONS = ["Café da manhã", "Almoço", "Lanche", "Jantar"];
 
-export default function DayScreen({ date, onBack }) {
+export default function DayScreen({ date, onBack, onViewMonth }) {
   const { showToast, produtos, comidas, refreshProdutos, refreshComidas } = useStore();
   const [day, setDay] = useState(null);
   const [addingTo, setAddingTo] = useState(null);
@@ -73,6 +73,12 @@ export default function DayScreen({ date, onBack }) {
             <div className="text-[11px] uppercase tracking-wider text-emerald-600 font-semibold">Diário</div>
             <h1 className="text-[18px] font-bold text-slate-900 capitalize leading-tight">{dateLabel}</h1>
           </div>
+          <div className="flex-1" />
+          {onViewMonth && (
+            <button onClick={onViewMonth} className="shrink-0 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold flex items-center gap-1.5">
+              <Icon name="calendar" className="w-4 h-4"/> Ver mês
+            </button>
+          )}
         </div>
         <div className="grid grid-cols-3 gap-2">
           <Stat label="Calorias" value={totals.calories} unit="kcal" color="orange" icon="flame"/>

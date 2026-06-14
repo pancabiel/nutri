@@ -4,30 +4,48 @@ import { StoreProvider, useStore } from "./state/store.jsx";
 import ChatScreen from "./screens/ChatScreen.jsx";
 import CalendarScreen from "./screens/CalendarScreen.jsx";
 import DayScreen from "./screens/DayScreen.jsx";
-import ProdutosScreen from "./screens/ProdutosScreen.jsx";
-import ComidasScreen from "./screens/ComidasScreen.jsx";
-import MarmitasScreen from "./screens/MarmitasScreen.jsx";
+import BibliotecaScreen from "./screens/BibliotecaScreen.jsx";
+import FeedScreen from "./screens/FeedScreen.jsx";
 import LoginScreen from "./screens/LoginScreen.jsx";
 import OnboardingScreen from "./screens/OnboardingScreen.jsx";
 import SettingsScreen from "./screens/SettingsScreen.jsx";
+import ProfileScreen from "./components/ProfileScreen.jsx";
 import UpgradeModal from "./components/UpgradeModal.jsx";
 import { todayISO, api } from "./lib/api.js";
 import { supabase } from "./lib/supabase.js";
 
-function Shell({ onOpenSettings, isPro }) {
+// Order is irrelevant — each screen is rendered into its own absolutely-positioned
+// layer and only the active one is visible. `calendar` isn't a tab of its own; it's
+// reached from the Agenda day ("Ver mês") and routes back into `day`.
+const SCREENS = ["chat", "day", "calendar", "biblioteca", "feed"];
+
+function Shell({ onOpenSettings, isPro, profile, currentUserId, onProfileChanged }) {
   const { toast, refreshProdutos, refreshComidas } = useStore();
   const [screen, setScreen] = useState("chat");
   const [date, setDate] = useState(todayISO());
+  // Keep every screen we've visited mounted so in-progress forms survive navigating
+  // away and back. Mount lazily on first visit so we don't fire every screen's data
+  // fetch on app load.
+  const [visited, setVisited] = useState(() => new Set(["chat"]));
 
   useEffect(() => { refreshProdutos(); refreshComidas(); }, []);
+  useEffect(() => {
+    setVisited((prev) => (prev.has(screen) ? prev : new Set(prev).add(screen)));
+  }, [screen]);
 
-  const otherScreens = {
-    calendar: <CalendarScreen onPickDay={(d) => { setDate(d); setScreen("day"); }} />,
-    day: <DayScreen date={date} onBack={() => setScreen("calendar")} />,
-    produtos: <ProdutosScreen />,
-    comidas: <ComidasScreen />,
-    marmitas: <MarmitasScreen />,
-  };
+  // The Agenda tab opens straight to today's diary; the monthly calendar is one tap away.
+  function openAgenda() { setDate(todayISO()); setScreen("day"); }
+
+  function renderScreen(name) {
+    switch (name) {
+      case "chat":       return <ChatScreen onOpenDay={() => { setDate(todayISO()); setScreen("day"); }} />;
+      case "calendar":   return <CalendarScreen onPickDay={(d) => { setDate(d); setScreen("day"); }} />;
+      case "day":        return <DayScreen date={date} onBack={() => setScreen("calendar")} onViewMonth={() => setScreen("calendar")} />;
+      case "biblioteca": return <BibliotecaScreen />;
+      case "feed":       return <FeedScreen profile={profile} currentUserId={currentUserId} onProfileChanged={onProfileChanged} />;
+      default:           return null;
+    }
+  }
 
   return (
     <div className="h-full w-full flex flex-col bg-white relative overflow-hidden">
@@ -52,19 +70,21 @@ function Shell({ onOpenSettings, isPro }) {
         </div>
       </header>
       <div className="flex-1 overflow-hidden relative">
-        <div className={screen === "chat" ? "absolute inset-0" : "hidden"}>
-          <ChatScreen onOpenDay={() => { setDate(todayISO()); setScreen("day"); }} />
-        </div>
-        {screen !== "chat" && otherScreens[screen]}
+        {SCREENS.map((name) =>
+          visited.has(name) ? (
+            <div key={name} className={screen === name ? "absolute inset-0" : "hidden"}>
+              {renderScreen(name)}
+            </div>
+          ) : null
+        )}
       </div>
 
       <nav className="shrink-0 border-t border-slate-200 bg-white px-2 pt-1.5 pb-[max(env(safe-area-inset-bottom),8px)]">
-        <div className="grid grid-cols-5 gap-1 max-w-md mx-auto">
-          <NavBtn active={screen === "chat"}                                onClick={() => setScreen("chat")}     icon="chat"     label="Chat"/>
-          <NavBtn active={screen === "calendar" || screen === "day"}        onClick={() => setScreen("calendar")} icon="calendar" label="Agenda"/>
-          <NavBtn active={screen === "produtos"}                            onClick={() => setScreen("produtos")} icon="box"      label="Produtos"/>
-          <NavBtn active={screen === "comidas"}                             onClick={() => setScreen("comidas")}  icon="plate"    label="Comidas"/>
-          <NavBtn active={screen === "marmitas"}                            onClick={() => setScreen("marmitas")} icon="layers"   label="Marmitas"/>
+        <div className="grid grid-cols-4 gap-1 max-w-md mx-auto">
+          <NavBtn active={screen === "chat"}                            onClick={() => setScreen("chat")}        icon="chat"     label="Chat"/>
+          <NavBtn active={screen === "day" || screen === "calendar"}    onClick={openAgenda}                     icon="calendar" label="Agenda"/>
+          <NavBtn active={screen === "biblioteca"}                      onClick={() => setScreen("biblioteca")}  icon="box"      label="Biblioteca"/>
+          <NavBtn active={screen === "feed"}                            onClick={() => setScreen("feed")}        icon="users"    label="Feed"/>
         </div>
       </nav>
 
@@ -95,19 +115,36 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  // Username whose profile overlay is open (deep-link ?u= or "nutri:open-profile" event).
+  const [viewUsername, setViewUsername] = useState(null);
   // Upgrade modal — `null` hidden, `{}` shown without context, `{cap: ...}` shown after 402.
   const [upgrade, setUpgrade] = useState(null);
 
   useEffect(() => {
     function onCap(e) { setUpgrade({ cap: e.detail }); }
     function onOpen(e) { setUpgrade({ cap: e.detail || null }); }
+    function onProfile(e) { if (e.detail) setViewUsername(e.detail); }
     window.addEventListener("nutri:cap-exceeded", onCap);
     window.addEventListener("nutri:open-upgrade", onOpen);
+    window.addEventListener("nutri:open-profile", onProfile);
     return () => {
       window.removeEventListener("nutri:cap-exceeded", onCap);
       window.removeEventListener("nutri:open-upgrade", onOpen);
+      window.removeEventListener("nutri:open-profile", onProfile);
     };
   }, []);
+
+  // Invite deep-link: ?u=<username> opens that profile (with a Follow button).
+  useEffect(() => {
+    if (!session) return;
+    const params = new URLSearchParams(window.location.search);
+    const u = params.get("u");
+    if (!u) return;
+    params.delete("u");
+    const search = params.toString();
+    window.history.replaceState({}, "", window.location.pathname + (search ? "?" + search : ""));
+    setViewUsername(u);
+  }, [session]);
 
   // Stripe Checkout return — refresh profile so is_pro flips immediately and strip the
   // query. The webhook usually lands before the user-facing redirect, but not always;
@@ -180,8 +217,17 @@ export default function App() {
   return (
     <StoreProvider>
       {showSettings
-        ? <SettingsScreen onClose={() => setShowSettings(false)} profile={profile} email={session?.user?.email ?? ""} />
-        : <Shell onOpenSettings={() => setShowSettings(true)} isPro={!!profile?.isPro} />}
+        ? <SettingsScreen onClose={() => setShowSettings(false)} profile={profile} email={session?.user?.email ?? ""} onProfileChanged={setProfile} />
+        : <Shell onOpenSettings={() => setShowSettings(true)} isPro={!!profile?.isPro} profile={profile} currentUserId={session?.user?.id} onProfileChanged={setProfile} />}
+      {viewUsername && (
+        <ProfileScreen
+          username={viewUsername}
+          currentUserId={session?.user?.id}
+          onClose={() => setViewUsername(null)}
+          onOpenProfile={setViewUsername}
+          onProfileChanged={setProfile}
+        />
+      )}
       {upgrade && <UpgradeModal cap={upgrade.cap} onClose={() => setUpgrade(null)} />}
     </StoreProvider>
   );

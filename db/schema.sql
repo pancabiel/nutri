@@ -444,3 +444,121 @@ create policy "own meal_template_item_produtos" on meal_template_item_produtos f
      where ti.id = meal_template_item_produtos.item_id and t.user_id = auth.uid()
   )
 );
+
+-- ============================================================
+-- SOCIAL FEED (2026-06 — compartilhar pratos/marmitas/comidas/produtos)
+--
+-- Introduces social identity, durable image storage and the ONE sanctioned
+-- cross-tenant read in the whole app: the feed reads posts of authors the
+-- viewer follows. Every post is self-contained (denormalized `snapshot`), so
+-- viewing/saving someone else's recipe never reads their private library.
+-- ============================================================
+
+-- 1. Social identity on profiles. Public read goes ONLY through the backend
+--    (GET /users/{username}, /users/search) which selects just these columns.
+--    DO NOT add a "public profile read" RLS policy — RLS is row-level, so
+--    `using (true)` would expose stripe_customer_id / is_pro / LGPD-sensitive
+--    columns to the browser (which uses supabase-js directly). Keep "own profile".
+alter table profiles add column if not exists username     text;
+alter table profiles add column if not exists display_name text;
+alter table profiles add column if not exists avatar_url   text;
+alter table profiles add column if not exists bio          text;
+create unique index if not exists idx_profiles_username on profiles (lower(username));
+
+-- 2. follows — assimétrico (seguir), sem aprovação. Tabela de junção: em vez do
+--    `user_id` único do resto do schema, usa o par (follower_id, followee_id) — ambos
+--    referenciam auth.users on delete cascade e ambos são indexados, então o invariante
+--    de tenant (cascata no delete LGPD + RLS por dono) é mantido.
+create table if not exists follows (
+  follower_id uuid not null references auth.users(id) on delete cascade,
+  followee_id uuid not null references auth.users(id) on delete cascade,
+  created_at  timestamptz not null default now(),
+  primary key (follower_id, followee_id),
+  check (follower_id <> followee_id)
+);
+create index if not exists idx_follows_follower on follows (follower_id);
+create index if not exists idx_follows_followee on follows (followee_id);
+
+alter table follows enable row level security;
+drop policy if exists "read own follows"  on follows;
+drop policy if exists "write own follows" on follows;
+-- I can see relations I'm part of; I can only create/delete rows where I'm the follower.
+create policy "read own follows" on follows for select using (
+  follower_id = auth.uid() or followee_id = auth.uid()
+);
+create policy "write own follows" on follows for all using (follower_id = auth.uid())
+                                              with check (follower_id = auth.uid());
+
+-- 3. feed_posts — autor-owned; o snapshot é uma cópia congelada da receita.
+create table if not exists feed_posts (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users(id) on delete cascade,  -- autor
+  caption    text,
+  image_url  text,                 -- URL pública no Supabase Storage (null = post de texto)
+  ref_type   text,                 -- null | 'produto' | 'comida' | 'marmita' | 'prato'
+  snapshot   jsonb,                -- cópia congelada da receita p/ exibir + salvar
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_feed_posts_user_created on feed_posts (user_id, created_at desc);
+-- id no índice global p/ casar com o cursor keyset (created_at, id).
+create index if not exists idx_feed_posts_created on feed_posts (created_at desc, id desc);
+
+alter table feed_posts enable row level security;
+drop policy if exists "feed read"  on feed_posts;
+drop policy if exists "feed write" on feed_posts;
+-- LEITURA CROSS-FOLLOW: a exceção sancionada. auth.uid() embrulhado em (select ...)
+-- p/ ser avaliado uma vez (cacheado) e não por linha.
+create policy "feed read" on feed_posts for select using (
+  user_id = (select auth.uid())
+  or exists (select 1 from follows f
+              where f.followee_id = feed_posts.user_id
+                and f.follower_id = (select auth.uid()))
+);
+create policy "feed write" on feed_posts for all using (user_id = (select auth.uid()))
+                                         with check (user_id = (select auth.uid()));
+
+-- 4. post_likes — sinal leve de engajamento.
+create table if not exists post_likes (
+  post_id uuid not null references feed_posts(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (post_id, user_id)
+);
+-- NÃO indexar post_id sozinho: a PK (post_id, user_id) já o cobre como prefixo.
+-- O FK sem índice é user_id → sem ele o delete-cascade LGPD varre post_likes inteira.
+create index if not exists idx_post_likes_user on post_likes (user_id);
+
+alter table post_likes enable row level security;
+drop policy if exists "read likes"  on post_likes;
+drop policy if exists "write own likes" on post_likes;
+-- Posso ler likes de posts que eu poderia ler (dono do post ou sigo o autor);
+-- só escrevo meus próprios likes.
+create policy "read likes" on post_likes for select using (
+  exists (select 1 from feed_posts p
+           where p.id = post_likes.post_id
+             and (p.user_id = (select auth.uid())
+                  or exists (select 1 from follows f
+                              where f.followee_id = p.user_id
+                                and f.follower_id = (select auth.uid()))))
+);
+create policy "write own likes" on post_likes for all using (user_id = (select auth.uid()))
+                                            with check (user_id = (select auth.uid()));
+
+-- 5. Supabase Storage (passo de painel — documentar no deploy):
+--    Buckets PÚBLICOS `avatars` e `posts`. Upload direto do frontend via
+--    supabase-js (anon key + JWT). Storage RLS exige prefixo "{auth.uid()}/...":
+--
+--    insert into storage.buckets (id, name, public) values
+--      ('avatars','avatars',true), ('posts','posts',true)
+--      on conflict (id) do nothing;
+--
+--    create policy "own avatar upload" on storage.objects for insert to authenticated
+--      with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+--    create policy "own post upload" on storage.objects for insert to authenticated
+--      with check (bucket_id = 'posts'   and (storage.foldername(name))[1] = auth.uid()::text);
+--    create policy "public avatar read" on storage.objects for select using (bucket_id = 'avatars');
+--    create policy "public post read"   on storage.objects for select using (bucket_id = 'posts');
+--
+--    Tradeoff: bucket público = imagem legível por URL mesmo que a linha do post
+--    seja gated por follow. OK pro MVP (path com UUID não-adivinhável). Migrar p/
+--    bucket privado + signed URLs se virar requisito.

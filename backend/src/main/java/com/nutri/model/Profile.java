@@ -19,5 +19,9 @@ public record Profile(
     Double activityMultiplier,
     Integer calorieGoal,
     Double proteinGoal,
-    boolean onboardingComplete
+    boolean onboardingComplete,
+    String username,
+    String displayName,
+    String avatarUrl,
+    String bio
 ) {}

@@ -6,6 +6,11 @@
 # Local TODO/Kanban hub (not part of the build)
 hub/
 
+# Installed agent skills (machine-local tooling, not source)
+.agents/
+.claude/skills/
+skills-lock.json
+
 # Playwright E2E
 .env.e2e
 **/tests/e2e/.auth/

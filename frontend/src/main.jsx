@@ -1,7 +1,11 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
+import { initTheme } from "./lib/theme.js";
 import "./index.css";
+
+// Apply the saved theme (default light) before first paint to avoid a flash.
+initTheme();
 
 // iOS launches homescreen apps (apple-mobile-web-app-capable) in a mode where
 // `navigator.standalone` is true but the `@media (display-mode: standalone)`
