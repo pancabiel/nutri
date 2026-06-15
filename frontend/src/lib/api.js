@@ -117,6 +117,8 @@ export const api = {
   social: {
     searchUsers: (q)          => http(`/users/search?q=${encodeURIComponent(q)}`),
     getProfile:  (username)   => http(`/users/${encodeURIComponent(username)}`),
+    followers:   (id)         => http(`/users/${id}/followers`),
+    following:   (id)         => http(`/users/${id}/following`),
     follow:      (id)         => http(`/users/${id}/follow`, { method: "POST" }),
     unfollow:    (id)         => http(`/users/${id}/follow`, { method: "DELETE" }),
   },

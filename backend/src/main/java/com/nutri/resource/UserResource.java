@@ -55,6 +55,20 @@ public class UserResource {
         return Response.ok(new ProfileView(sp, posts)).build();
     }
 
+    /** Users who follow {@code id} ("seguidores"). Public columns only, viewer-relative flags. */
+    @GET @Path("{id}/followers")
+    public List<SocialProfile> followers(@PathParam("id") UUID id,
+                                         @QueryParam("limit") @DefaultValue("100") int limit) {
+        return profiles.followersOf(user.userId(), id, Math.max(1, Math.min(limit, 200)));
+    }
+
+    /** Users that {@code id} follows ("seguindo"). */
+    @GET @Path("{id}/following")
+    public List<SocialProfile> following(@PathParam("id") UUID id,
+                                         @QueryParam("limit") @DefaultValue("100") int limit) {
+        return profiles.followingOf(user.userId(), id, Math.max(1, Math.min(limit, 200)));
+    }
+
     @POST @Path("{id}/follow")
     public SocialProfile follow(@PathParam("id") UUID id) {
         follows.follow(user.userId(), id);

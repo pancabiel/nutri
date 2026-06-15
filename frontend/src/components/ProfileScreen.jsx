@@ -3,6 +3,7 @@ import Icon from "./Icon.jsx";
 import Sheet from "./Sheet.jsx";
 import PostCard, { Avatar } from "./PostCard.jsx";
 import SocialProfileEditor from "./SocialProfileEditor.jsx";
+import FollowListSheet from "./FollowListSheet.jsx";
 import { api } from "../lib/api.js";
 import { useStore } from "../state/store.jsx";
 
@@ -16,6 +17,7 @@ export default function ProfileScreen({ username, currentUserId, onClose, onOpen
   const [notFound, setNotFound] = useState(false);
   const [editing, setEditing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
+  const [followSheet, setFollowSheet] = useState(null); // { mode: "followers"|"following", title } | null
 
   async function load() {
     setNotFound(false);
@@ -62,8 +64,12 @@ export default function ProfileScreen({ username, currentUserId, onClose, onOpen
             <div className="text-sm text-slate-400">@{profile.username}</div>
             {profile.bio && <p className="text-sm text-slate-600 mt-2 max-w-xs">{profile.bio}</p>}
             <div className="flex gap-6 mt-3 text-sm">
-              <div><span className="font-bold text-slate-900">{profile.followers}</span> <span className="text-slate-400">seguidores</span></div>
-              <div><span className="font-bold text-slate-900">{profile.following}</span> <span className="text-slate-400">seguindo</span></div>
+              <button onClick={() => setFollowSheet({ mode: "followers", title: "Seguidores" })} className="hover:opacity-70">
+                <span className="font-bold text-slate-900">{profile.followers}</span> <span className="text-slate-400">seguidores</span>
+              </button>
+              <button onClick={() => setFollowSheet({ mode: "following", title: "Seguindo" })} className="hover:opacity-70">
+                <span className="font-bold text-slate-900">{profile.following}</span> <span className="text-slate-400">seguindo</span>
+              </button>
             </div>
 
             {profile.isSelf ? (
@@ -95,6 +101,16 @@ export default function ProfileScreen({ username, currentUserId, onClose, onOpen
           profile={profile}
           onClose={() => setEditing(false)}
           onSaved={(updated) => { setEditing(false); onProfileChanged?.(updated); load(); }}
+        />
+      )}
+
+      {followSheet && profile && (
+        <FollowListSheet
+          userId={profile.userId}
+          mode={followSheet.mode}
+          title={followSheet.title}
+          onClose={() => setFollowSheet(null)}
+          onOpenProfile={(u) => { setFollowSheet(null); onOpenProfile?.(u); }}
         />
       )}
     </Sheet>

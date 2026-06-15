@@ -338,6 +338,48 @@ public class ProfileRepository {
         return out;
     }
 
+    /**
+     * Users who follow {@code targetId} (their "seguidores"), newest-follow first.
+     * Returns the public {@link SocialProfile} shape with counts and the VIEWER's
+     * {@code isFollowing}/{@code isSelf} for each row, so the list can show Follow buttons.
+     */
+    public List<SocialProfile> followersOf(UUID viewerId, UUID targetId, int limit) {
+        return followList(viewerId, targetId, limit, true);
+    }
+
+    /** Users {@code targetId} follows (their "seguindo"), newest-follow first. */
+    public List<SocialProfile> followingOf(UUID viewerId, UUID targetId, int limit) {
+        return followList(viewerId, targetId, limit, false);
+    }
+
+    private List<SocialProfile> followList(UUID viewerId, UUID targetId, int limit, boolean followers) {
+        // followers: people whose follow row points AT target (join on fr.follower_id).
+        // following: people target points at            (join on fr.followee_id).
+        var joinCol  = followers ? "fr.follower_id" : "fr.followee_id";
+        var whereCol = followers ? "fr.followee_id" : "fr.follower_id";
+        var sql = """
+            select p.user_id, p.username, p.display_name, p.avatar_url, p.bio,
+                   (select count(*) from follows f where f.followee_id = p.user_id) as followers,
+                   (select count(*) from follows f where f.follower_id = p.user_id) as following,
+                   exists (select 1 from follows f where f.followee_id = p.user_id and f.follower_id = ?) as is_following
+              from follows fr
+              join profiles p on p.user_id = %s
+             where %s = ?
+             order by fr.created_at desc
+             limit ?""".formatted(joinCol, whereCol);
+        var out = new ArrayList<SocialProfile>();
+        try (var c = ds.getConnection();
+             var s = c.prepareStatement(sql)) {
+            s.setObject(1, viewerId);
+            s.setObject(2, targetId);
+            s.setInt(3, limit);
+            try (var rs = s.executeQuery()) {
+                while (rs.next()) out.add(mapSocial(rs, viewerId));
+            }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+        return out;
+    }
+
     private static SocialProfile mapSocial(ResultSet rs, UUID viewerId) throws SQLException {
         var uid = (UUID) rs.getObject("user_id");
         return new SocialProfile(
