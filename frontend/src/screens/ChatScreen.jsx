@@ -79,10 +79,10 @@ export default function ChatScreen({ onOpenDay }) {
       <div className="shrink-0 px-3 pt-2 pb-2 bg-white/70 backdrop-blur border-t border-slate-200">
         <div className="flex items-center gap-2">
           <button onClick={onCamera} className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center"><Icon name="camera"/></button>
-          <div className="flex-1 flex items-center bg-slate-100 rounded-full pl-4 pr-1 h-10">
+          <div className="flex-1 flex items-center bg-slate-100 dark:!bg-slate-800 rounded-full pl-4 pr-1 h-10">
             <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send(input)}
                    placeholder="O que você comeu?" className="flex-1 bg-transparent outline-none text-[15px] placeholder:text-slate-400" />
-            <button onClick={() => send(input)} disabled={!input.trim()} className="w-8 h-8 rounded-full bg-emerald-500 disabled:bg-slate-300 text-white flex items-center justify-center"><Icon name="send" className="w-4 h-4"/></button>
+            <button onClick={() => send(input)} disabled={!input.trim()} className="w-8 h-8 rounded-full bg-emerald-500 disabled:opacity-40 text-white flex items-center justify-center"><Icon name="send" className="w-4 h-4"/></button>
           </div>
         </div>
       </div>

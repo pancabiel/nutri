@@ -11,7 +11,7 @@ import { comidaTotals, comidaPerGram } from "../lib/macros.js";
 
 const SECTIONS = ["Café da manhã", "Almoço", "Lanche", "Jantar"];
 
-export default function DayScreen({ date, onBack, onViewMonth }) {
+export default function DayScreen({ date, onBack, onViewMonth, active = true }) {
   const { showToast, produtos, comidas, refreshProdutos, refreshComidas } = useStore();
   const [day, setDay] = useState(null);
   const [addingTo, setAddingTo] = useState(null);
@@ -21,7 +21,9 @@ export default function DayScreen({ date, onBack, onViewMonth }) {
   const [newSection, setNewSection] = useState(false);
   const [confirm, setConfirm] = useState(null);
 
-  useEffect(() => { reload(); }, [date]);
+  // Reload whenever the date changes or this screen becomes active again — the latter
+  // catches meals logged elsewhere (chat, day-chat) while another screen was on top.
+  useEffect(() => { if (active) reload(); }, [date, active]);
   useEffect(() => { if (!produtos.length) refreshProdutos(); if (!comidas.length) refreshComidas(); }, []);
 
   async function reload() { setDay(await api.meals.day(date)); }
@@ -138,7 +140,10 @@ export default function DayScreen({ date, onBack, onViewMonth }) {
             )}
           </div>
         ))}
-        <button onClick={() => setNewSection(true)} className="w-full bg-white border border-dashed border-slate-300 rounded-2xl py-4 text-slate-500 font-semibold flex items-center justify-center gap-2"><Icon name="plus" className="w-4 h-4"/> Nova seção</button>
+      </div>
+
+      <div className="shrink-0 px-3 pt-1 pb-3 bg-slate-50">
+        <button onClick={() => setNewSection(true)} className="w-full bg-white border border-dashed border-slate-300 rounded-2xl py-3 text-slate-500 font-semibold flex items-center justify-center gap-2"><Icon name="plus" className="w-4 h-4"/> Nova seção</button>
       </div>
 
       <button onClick={() => setChatOpen(true)} className="absolute right-4 bottom-24 md:bottom-6 w-14 h-14 rounded-full bg-emerald-500 text-white shadow-xl shadow-emerald-500/40 flex items-center justify-center"><Icon name="chat" className="w-6 h-6"/></button>

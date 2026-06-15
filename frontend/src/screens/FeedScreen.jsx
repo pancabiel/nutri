@@ -88,7 +88,7 @@ export default function FeedScreen({ profile, currentUserId, onProfileChanged })
         )}
       </div>
 
-      <button onClick={compose} className="absolute right-4 bottom-24 w-14 h-14 rounded-full bg-emerald-500 text-white shadow-xl shadow-emerald-500/40 flex items-center justify-center"><Icon name="plus" className="w-6 h-6" /></button>
+      <button onClick={compose} className="absolute right-4 bottom-4 w-14 h-14 rounded-full bg-emerald-500 text-white shadow-xl shadow-emerald-500/40 flex items-center justify-center"><Icon name="plus" className="w-6 h-6" /></button>
 
       {composing && <ComposePostSheet onClose={() => setComposing(false)} onCreated={onCreated} />}
       {searching && <UserSearchSheet onClose={() => setSearching(false)} onOpenProfile={(u) => { setSearching(false); openProfile(u); }} />}

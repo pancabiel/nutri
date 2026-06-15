@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import Icon from "../components/Icon.jsx";
 import { api, todayISO } from "../lib/api.js";
 
-export default function CalendarScreen({ onPickDay }) {
+export default function CalendarScreen({ onPickDay, active = true }) {
   const [month, setMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [recent, setRecent] = useState([]);
 
-  useEffect(() => { api.meals.recent(60).then(setRecent).catch(() => setRecent([])); }, []);
+  // Refetch each time the calendar becomes active so day totals reflect meals logged
+  // from the chat or day view while this screen was hidden but still mounted.
+  useEffect(() => { if (active) api.meals.recent(60).then(setRecent).catch(() => setRecent([])); }, [active]);
 
   const monthName = new Date(month.y, month.m, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
   const firstDay = new Date(month.y, month.m, 1);
