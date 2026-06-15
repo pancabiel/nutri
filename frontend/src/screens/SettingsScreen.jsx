@@ -11,6 +11,8 @@ import {
   subscribe as pushSubscribe, unsubscribe as pushUnsubscribe, hasVapidKey,
 } from "../lib/push.js";
 
+const CANONICAL_SECTIONS = ["Café da manhã", "Almoço", "Lanche", "Jantar"];
+
 export default function SettingsScreen({ onClose, profile: profileProp, email: emailProp = "", onProfileChanged }) {
   const [profile, setProfile] = useState(profileProp ?? null);
   const [editingSocial, setEditingSocial] = useState(false);
@@ -24,6 +26,11 @@ export default function SettingsScreen({ onClose, profile: profileProp, email: e
   const [dark, setDark] = useState(getTheme() === "dark");
 
   const { showToast } = useStore() ?? {};
+
+  // ----- Default meal sections (diary template) -----
+  const [secList, setSecList] = useState(null);       // editable draft
+  const [secBaseline, setSecBaseline] = useState(null); // last persisted (for dirty check)
+  const [secBusy, setSecBusy] = useState(false);
 
   // ----- Reminders (push) state -----
   const [prefs, setPrefs] = useState(null);
@@ -109,6 +116,44 @@ export default function SettingsScreen({ onClose, profile: profileProp, email: e
       showToast?.("Falha ao salvar");
     } finally {
       setSavingPrefs(false);
+    }
+  }
+
+  // Seed the section editor from the profile once it's available (and re-sync after saves).
+  useEffect(() => {
+    if (!profile) return;
+    const init = profile.defaultSections?.length ? profile.defaultSections : CANONICAL_SECTIONS;
+    setSecList(init);
+    setSecBaseline(init);
+  }, [profile]);
+
+  const secDirty = secList && secBaseline && JSON.stringify(secList) !== JSON.stringify(secBaseline);
+
+  function secMove(i, dir) {
+    const j = i + dir;
+    if (j < 0 || j >= secList.length) return;
+    const next = [...secList];
+    [next[i], next[j]] = [next[j], next[i]];
+    setSecList(next);
+  }
+  function secRemove(i) { setSecList(secList.filter((_, k) => k !== i)); }
+  function secAdd(name) {
+    const v = (name || "").trim();
+    if (!v || secList.some((s) => s.toLowerCase() === v.toLowerCase())) return;
+    setSecList([...secList, v]);
+  }
+  async function secSave() {
+    if (!secList.length) { showToast?.("Adicione ao menos uma seção"); return; }
+    setSecBusy(true);
+    try {
+      const updated = await api.profile.setDefaultSections(secList);
+      setProfile(updated);
+      onProfileChanged?.(updated);
+      showToast?.("Seções padrão salvas");
+    } catch {
+      showToast?.("Falha ao salvar");
+    } finally {
+      setSecBusy(false);
     }
   }
 
@@ -273,6 +318,20 @@ export default function SettingsScreen({ onClose, profile: profileProp, email: e
           />
         </section>
 
+        <section>
+          <div className="text-xs uppercase tracking-wide text-slate-400 mb-2">Seções do diário</div>
+          <DefaultSectionsSection
+            list={secList}
+            dirty={secDirty}
+            busy={secBusy}
+            onMove={secMove}
+            onRemove={secRemove}
+            onAdd={secAdd}
+            onReset={() => setSecList(CANONICAL_SECTIONS)}
+            onSave={secSave}
+          />
+        </section>
+
         {profile?.onboardingComplete && (
           <section>
             <div className="text-xs uppercase tracking-wide text-slate-400 mb-2">Metas</div>
@@ -347,6 +406,62 @@ export default function SettingsScreen({ onClose, profile: profileProp, email: e
           onSaved={(updated) => { setEditingSocial(false); setProfile(updated); onProfileChanged?.(updated); }}
         />
       )}
+    </div>
+  );
+}
+
+function DefaultSectionsSection({ list, dirty, busy, onMove, onRemove, onAdd, onReset, onSave }) {
+  const [draft, setDraft] = useState("");
+  if (!list) {
+    return <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-400">Carregando…</div>;
+  }
+  const isDefault = JSON.stringify(list) === JSON.stringify(CANONICAL_SECTIONS);
+  function submitAdd() { onAdd(draft); setDraft(""); }
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-sm text-slate-500">
+        Estas são as seções que cada novo dia começa. Reordene, renomeie ou remova — vale só para os dias criados a partir de agora.
+      </p>
+      <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100">
+        {list.length === 0 && (
+          <div className="px-4 py-3 text-sm text-slate-400">Nenhuma seção. Adicione abaixo.</div>
+        )}
+        {list.map((name, i) => (
+          <div key={i} className="flex items-center gap-2 px-3 py-2">
+            <div className="flex flex-col">
+              <button onClick={() => onMove(i, -1)} disabled={i === 0} className="w-6 h-5 text-slate-400 enabled:hover:text-slate-700 disabled:opacity-30 flex items-center justify-center" aria-label="Mover para cima"><Icon name="chevronUp" className="w-4 h-4" /></button>
+              <button onClick={() => onMove(i, 1)} disabled={i === list.length - 1} className="w-6 h-5 text-slate-400 enabled:hover:text-slate-700 disabled:opacity-30 flex items-center justify-center" aria-label="Mover para baixo"><Icon name="chevronDown" className="w-4 h-4" /></button>
+            </div>
+            <span className="flex-1 min-w-0 text-sm font-medium text-slate-800 truncate">{name}</span>
+            <button onClick={() => onRemove(i)} className="w-8 h-8 rounded-full hover:bg-rose-50 text-rose-500 flex items-center justify-center" aria-label="Remover"><Icon name="trash" className="w-4 h-4" /></button>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2">
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitAdd(); } }}
+          placeholder="Adicionar seção (ex: Ceia)"
+          className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white"
+        />
+        <button onClick={submitAdd} disabled={!draft.trim()} className="shrink-0 rounded-xl bg-slate-100 text-slate-700 font-medium px-4 disabled:opacity-50">Adicionar</button>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {!isDefault && (
+          <button onClick={onReset} className="text-sm text-slate-500 underline">Restaurar padrão</button>
+        )}
+        <div className="flex-1" />
+        <button
+          onClick={onSave}
+          disabled={busy || !dirty || list.length === 0}
+          className="rounded-xl bg-slate-900 text-white font-semibold px-5 py-2.5 disabled:opacity-40"
+        >
+          {busy ? "Salvando…" : "Salvar"}
+        </button>
+      </div>
     </div>
   );
 }

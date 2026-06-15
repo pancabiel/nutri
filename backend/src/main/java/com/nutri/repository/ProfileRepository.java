@@ -13,6 +13,7 @@ import java.sql.Types;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -72,6 +73,28 @@ public class ProfileRepository {
             setNullableDouble(s, 8, u.proteinGoal());
             s.setBoolean(9, u.onboardingComplete());
             s.setObject(10, userId);
+            try (var rs = s.executeQuery()) {
+                rs.next();
+                return map(rs);
+            }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+    /**
+     * Sets the user's default meal-section template — the ordered list a brand-new
+     * meal day is seeded with ({@link MealRepository#getOrCreate}). A null/empty list
+     * stores SQL NULL, which the seeding code reads as "use the canonical four".
+     */
+    public Profile setDefaultSections(UUID userId, List<String> sections) {
+        getOrCreate(userId);
+        var clean = sections == null ? List.<String>of()
+            : sections.stream().map(s -> s == null ? null : s.trim())
+                      .filter(s -> s != null && !s.isEmpty()).toList();
+        try (var c = ds.getConnection();
+             var s = c.prepareStatement(
+                 "update profiles set default_sections = ? where user_id = ? returning *")) {
+            s.setArray(1, clean.isEmpty() ? null : c.createArrayOf("text", clean.toArray()));
+            s.setObject(2, userId);
             try (var rs = s.executeQuery()) {
                 rs.next();
                 return map(rs);
@@ -353,8 +376,17 @@ public class ProfileRepository {
             rs.getString("username"),
             rs.getString("display_name"),
             rs.getString("avatar_url"),
-            rs.getString("bio")
+            rs.getString("bio"),
+            readTextArray(rs, "default_sections")
         );
+    }
+
+    /** Reads a Postgres text[] column into a List, or null if SQL NULL. */
+    private static List<String> readTextArray(ResultSet rs, String col) throws SQLException {
+        var arr = rs.getArray(col);
+        if (arr == null) return null;
+        var vals = (String[]) arr.getArray();
+        return vals == null ? null : Arrays.asList(vals);
     }
 
     public record OnboardingUpdate(

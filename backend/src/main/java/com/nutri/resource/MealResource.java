@@ -35,6 +35,12 @@ public class MealResource {
         return repo.addSection(user.userId(), LocalDate.parse(date), req.name());
     }
 
+    @PUT @Path("{date}/sections/order")
+    public Response reorderSections(@PathParam("date") String date, ReorderSections req) {
+        repo.reorderSections(user.userId(), LocalDate.parse(date), req.sectionIds());
+        return Response.noContent().build();
+    }
+
     @DELETE @Path("sections/{sectionId}")
     public Response deleteSection(@PathParam("sectionId") UUID id) {
         repo.deleteSection(user.userId(), id);
@@ -70,6 +76,7 @@ public class MealResource {
     }
 
     public record NewSection(String name) {}
+    public record ReorderSections(List<UUID> sectionIds) {}
     public record BatchRequest(String section, List<String> dates, List<MealDay.MealItem> items) {}
     public record BatchResult(int inserted, int days) {}
 }

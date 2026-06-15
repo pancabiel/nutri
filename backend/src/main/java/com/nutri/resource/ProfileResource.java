@@ -48,6 +48,15 @@ public class ProfileResource {
             s == null ? null : trimOrNull(s.bio()));
     }
 
+    /**
+     * Sets the user's default meal-section template (ordered list of section names a new
+     * day is seeded with). An empty/absent list resets to the canonical four.
+     */
+    @PUT @Path("default-sections")
+    public Profile updateDefaultSections(DefaultSectionsUpdate req) {
+        return repo.setDefaultSections(user.userId(), req == null ? null : req.sections());
+    }
+
     private static String normalize(String u) {
         if (u == null) return null;
         u = u.trim().toLowerCase();
@@ -61,4 +70,5 @@ public class ProfileResource {
     }
 
     public record SocialUpdate(String username, String displayName, String avatarUrl, String bio) {}
+    public record DefaultSectionsUpdate(java.util.List<String> sections) {}
 }

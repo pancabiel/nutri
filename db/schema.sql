@@ -562,3 +562,11 @@ create policy "write own likes" on post_likes for all using (user_id = (select a
 --    Tradeoff: bucket público = imagem legível por URL mesmo que a linha do post
 --    seja gated por follow. OK pro MVP (path com UUID não-adivinhável). Migrar p/
 --    bucket privado + signed URLs se virar requisito.
+
+-- ============================================================
+-- DEFAULT MEAL SECTIONS (per-user diary template)
+-- ============================================================
+-- The ordered list of section names a brand-new meal day is seeded with
+-- (MealRepository.ensureDay). null/empty → backend falls back to the canonical
+-- four ("Café da manhã", "Almoço", "Lanche", "Jantar"). Editable in Settings.
+alter table profiles add column if not exists default_sections text[];

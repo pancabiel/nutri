@@ -14,6 +14,8 @@ const PATHS = {
   back: <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>,
   chevronR: <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>,
   chevronL: <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>,
+  chevronUp: <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7"/>,
+  chevronDown: <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/>,
   sparkles: <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.29 6.31L22 12l-6.71 2.29L13 21l-2.29-6.71L4 12l6.71-2.29L13 3z"/>,
   mic: <path strokeLinecap="round" strokeLinejoin="round" d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3zM19 10v2a7 7 0 01-14 0v-2M12 19v4m-4 0h8"/>,
   flame: <path strokeLinecap="round" strokeLinejoin="round" d="M12 2s4 4 4 8a4 4 0 11-8 0c0-2 1-3 1-5 0-1-1-2-1-2s4 1 4-1zM6 14a6 6 0 0012 0c0 4-3 8-6 8s-6-4-6-8z"/>,

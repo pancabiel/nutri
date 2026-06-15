@@ -3,6 +3,7 @@ package com.nutri.model;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -23,5 +24,6 @@ public record Profile(
     String username,
     String displayName,
     String avatarUrl,
-    String bio
+    String bio,
+    List<String> defaultSections
 ) {}

@@ -76,6 +76,7 @@ export const api = {
     day:    (date)            => http(`/meal-days/${date}`),
     addSection:    (date, n)  => http(`/meal-days/${date}/sections`, { method: "POST", body: JSON.stringify({ name: n }) }),
     deleteSection: (id)       => http(`/meal-days/sections/${id}`, { method: "DELETE" }),
+    reorderSections: (date, ids) => http(`/meal-days/${date}/sections/order`, { method: "PUT", body: JSON.stringify({ sectionIds: ids }) }),
     addItem: (sectionId, it)  => http(`/meal-days/sections/${sectionId}/items`, { method: "POST", body: JSON.stringify(it) }),
     updateItem: (id, it)      => http(`/meal-days/items/${id}`, { method: "PUT", body: JSON.stringify(it) }),
     deleteItem: (id)          => http(`/meal-days/items/${id}`, { method: "DELETE" }),
@@ -94,6 +95,7 @@ export const api = {
     get:    ()                => http(`/profile`),
     update: (u)               => http(`/profile`, { method: "PUT", body: JSON.stringify(u) }),
     updateSocial: (s)         => http(`/profile/social`, { method: "PUT", body: JSON.stringify(s) }),
+    setDefaultSections: (sections) => http(`/profile/default-sections`, { method: "PUT", body: JSON.stringify({ sections }) }),
   },
   // social feed
   feed: {

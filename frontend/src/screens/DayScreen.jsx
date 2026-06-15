@@ -37,6 +37,22 @@ export default function DayScreen({ date, onBack, onViewMonth }) {
   async function removeItem(id) { await api.meals.deleteItem(id); showToast("Item removido"); reload(); }
   async function removeSection(id) { await api.meals.deleteSection(id); showToast("Seção removida"); reload(); }
 
+  // Move a section up (-1) or down (+1). Optimistic: reorder locally, then persist the
+  // new top-to-bottom id order; on failure revert by reloading from the server.
+  async function moveSection(index, dir) {
+    const j = index + dir;
+    if (j < 0 || j >= day.sections.length) return;
+    const reordered = [...day.sections];
+    [reordered[index], reordered[j]] = [reordered[j], reordered[index]];
+    setDay({ ...day, sections: reordered });
+    try {
+      await api.meals.reorderSections(date, reordered.map(s => s.id));
+    } catch {
+      showToast("Não foi possível reordenar");
+      reload();
+    }
+  }
+
   function askRemoveSection(section) {
     setConfirm({
       title: "Excluir seção?",
@@ -88,10 +104,14 @@ export default function DayScreen({ date, onBack, onViewMonth }) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 scroll-hide">
-        {day.sections.map(section => (
+        {day.sections.map((section, index) => (
           <div key={section.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
             <div className="px-4 py-3 flex items-center justify-between">
-              <div>
+              <div className="flex flex-col -ml-1.5 mr-1.5">
+                <button onClick={() => moveSection(index, -1)} disabled={index === 0} className="w-6 h-5 rounded text-slate-400 enabled:hover:text-slate-700 disabled:opacity-30 flex items-center justify-center" aria-label="Mover seção para cima"><Icon name="chevronUp" className="w-4 h-4"/></button>
+                <button onClick={() => moveSection(index, 1)} disabled={index === day.sections.length - 1} className="w-6 h-5 rounded text-slate-400 enabled:hover:text-slate-700 disabled:opacity-30 flex items-center justify-center" aria-label="Mover seção para baixo"><Icon name="chevronDown" className="w-4 h-4"/></button>
+              </div>
+              <div className="flex-1 min-w-0">
                 <div className="font-bold text-slate-800">{section.name}</div>
                 <div className="text-xs text-slate-500">{section.items.reduce((s, i) => s + i.calories, 0)} kcal · {section.items.length} itens</div>
               </div>

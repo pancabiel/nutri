@@ -77,6 +77,33 @@ public class MealRepository {
         } catch (SQLException e) { throw new RuntimeException(e); }
     }
 
+    /**
+     * Persist a new section ordering for a user's meal day. {@code orderedIds} is the
+     * full list of section ids in the desired top-to-bottom order; each gets its
+     * {@code order_index} set to its position. Only sections on the user's own day for
+     * {@code date} are touched (ids that don't belong are no-ops), so a forged id can't
+     * reorder another user's diary.
+     */
+    public void reorderSections(UUID userId, LocalDate date, List<UUID> orderedIds) {
+        if (orderedIds == null || orderedIds.isEmpty()) return;
+        var dayId = ensureDay(userId, date);
+        var sql = """
+            update meal_sections set order_index = ?
+             where id = ? and meal_day_id = ?
+               and meal_day_id in (select id from meal_days where user_id = ?)""";
+        try (var c = ds.getConnection();
+             var s = c.prepareStatement(sql)) {
+            for (int i = 0; i < orderedIds.size(); i++) {
+                s.setInt(1, i);
+                s.setObject(2, orderedIds.get(i));
+                s.setObject(3, dayId);
+                s.setObject(4, userId);
+                s.addBatch();
+            }
+            s.executeBatch();
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
     public void deleteSection(UUID userId, UUID sectionId) {
         // Only delete if the section belongs to a meal_day the user owns.
         var sql = """
@@ -276,18 +303,43 @@ public class MealRepository {
                 s.setDate(3, java.sql.Date.valueOf(date));
                 s.executeUpdate();
             }
-            for (int i = 0; i < DEFAULT_SECTIONS.size(); i++) {
+            var sections = defaultSectionsFor(c, userId);
+            for (int i = 0; i < sections.size(); i++) {
                 try (var s = c.prepareStatement(
                     "insert into meal_sections (id, meal_day_id, name, order_index) values (?, ?, ?, ?)")) {
                     s.setObject(1, UUID.randomUUID());
                     s.setObject(2, id);
-                    s.setString(3, DEFAULT_SECTIONS.get(i));
+                    s.setString(3, sections.get(i));
                     s.setInt(4, i);
                     s.executeUpdate();
                 }
             }
             return id;
         } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+    /**
+     * The ordered section names a new day for this user should be seeded with: the
+     * user's saved {@code profiles.default_sections}, falling back to the canonical
+     * four when unset/empty. Reuses the caller's connection (we're mid-create).
+     */
+    private List<String> defaultSectionsFor(Connection c, UUID userId) {
+        try (var s = c.prepareStatement("select default_sections from profiles where user_id = ?")) {
+            s.setObject(1, userId);
+            try (var rs = s.executeQuery()) {
+                if (rs.next()) {
+                    var arr = rs.getArray("default_sections");
+                    if (arr != null) {
+                        var out = new ArrayList<String>();
+                        for (var v : (String[]) arr.getArray()) {
+                            if (v != null && !v.isBlank()) out.add(v);
+                        }
+                        if (!out.isEmpty()) return out;
+                    }
+                }
+            }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+        return DEFAULT_SECTIONS;
     }
 
     private MealDay load(UUID userId, UUID dayId, LocalDate date) {
