@@ -8,6 +8,7 @@ import com.nutri.model.Produto;
 import com.nutri.repository.KillSwitchRepository;
 import com.nutri.repository.ProfileRepository;
 import com.nutri.repository.UsageRepository;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -20,6 +21,15 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 @ApplicationScoped
+// These records are (de)serialized by Jackson via M.treeToValue(...) when parsing the
+// model's JSON. In the native image their constructors aren't reflectively available
+// unless registered, so treeToValue throws "no Creator ... native image" and the parse
+// silently falls back to an empty list (e.g. "comida por texto" found no ingredients).
+@RegisterForReflection(targets = {
+    AiService.ParsedItem.class, AiService.ParseResult.class,
+    AiService.MarmitaItem.class, AiService.MarmitaParse.class,
+    AiService.ComidaParse.class, AiService.NutritionLabel.class
+})
 public class AiService {
 
     private static final Logger LOG = Logger.getLogger(AiService.class);
