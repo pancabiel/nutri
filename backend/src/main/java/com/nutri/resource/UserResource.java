@@ -6,6 +6,7 @@ import com.nutri.model.SocialProfile;
 import com.nutri.repository.FeedRepository;
 import com.nutri.repository.FollowRepository;
 import com.nutri.repository.ProfileRepository;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -68,5 +69,10 @@ public class UserResource {
             .orElseThrow(() -> new NotFoundException("user not found"));
     }
 
+    // Returned via Response.ok(...) rather than as the method's declared return type, so
+    // Quarkus's build-time scanner can't see it and won't register its record components
+    // for reflection — which makes Jackson fail to serialize it in the native image
+    // ("No serializer found ... no properties discovered"). Register it explicitly.
+    @RegisterForReflection
     public record ProfileView(SocialProfile profile, List<FeedPost> posts) {}
 }
