@@ -1,7 +1,6 @@
 package com.nutri.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.JsonNode;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -19,7 +18,11 @@ public record FeedPost(
     String caption,
     String imageUrl,
     String refType,
-    JsonNode snapshot,
+    // Plain JSON tree (Maps/Lists/scalars), NOT a Jackson JsonNode: returning a raw
+    // JsonNode through RESTEasy serializes fine on the JVM but its concrete node classes
+    // (ObjectNode/ArrayNode/…) aren't registered for reflection in the native image, which
+    // 500s every snapshot-bearing post in prod. Built via mapper.readValue(raw, Object.class).
+    Object snapshot,
     long likeCount,
     boolean liked,
     OffsetDateTime createdAt

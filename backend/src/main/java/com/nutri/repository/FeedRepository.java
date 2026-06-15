@@ -1,6 +1,5 @@
 package com.nutri.repository;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nutri.model.FeedPost;
 import io.agroal.api.AgroalDataSource;
@@ -155,10 +154,12 @@ public class FeedRepository {
             rs.getString("username"),
             rs.getString("display_name"),
             rs.getString("avatar_url"));
-        JsonNode snapshot = null;
+        Object snapshot = null;
         var raw = rs.getString("snapshot");
         if (raw != null && !raw.isBlank()) {
-            try { snapshot = mapper.readTree(raw); } catch (Exception ignore) { /* tolerate bad snapshot */ }
+            // Parse to plain Maps/Lists/scalars (Object), not a JsonNode — see FeedPost.snapshot
+            // for why the native image can't serialize JsonNode out through RESTEasy.
+            try { snapshot = mapper.readValue(raw, Object.class); } catch (Exception ignore) { /* tolerate bad snapshot */ }
         }
         return new FeedPost(
             (UUID) rs.getObject("id"),

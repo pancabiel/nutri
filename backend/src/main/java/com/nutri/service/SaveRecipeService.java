@@ -1,6 +1,7 @@
 package com.nutri.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nutri.auth.CurrentUser;
 import com.nutri.model.Comida;
 import com.nutri.model.FeedPost;
@@ -34,6 +35,7 @@ public class SaveRecipeService {
     @Inject ProdutoRepository produtos;
     @Inject ComidaRepository comidas;
     @Inject MealTemplateRepository templates;
+    @Inject ObjectMapper mapper;
 
     public SaveResult save(UUID postId) {
         var viewer = user.userId();
@@ -41,7 +43,9 @@ public class SaveRecipeService {
         var post = feed.byId(viewer, postId)
             .orElseThrow(() -> new NotFoundException("post not found or not visible"));
         var refType = post.refType();
-        var snap = post.snapshot();
+        // FeedPost.snapshot is a plain Object (Maps/Lists) for native-safe serialization;
+        // convert back to a JsonNode here for the navigation helpers below.
+        JsonNode snap = post.snapshot() == null ? null : mapper.valueToTree(post.snapshot());
         if (refType == null || snap == null)
             throw new BadRequestException("post has no recipe to save");
 
