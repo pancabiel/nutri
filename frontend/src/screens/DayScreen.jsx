@@ -140,13 +140,10 @@ export default function DayScreen({ date, onBack, onViewMonth, active = true }) 
             )}
           </div>
         ))}
+        <button onClick={() => setNewSection(true)} className="w-full bg-white border border-dashed border-slate-300 rounded-2xl py-4 text-slate-500 font-semibold flex items-center justify-center gap-2"><Icon name="plus" className="w-4 h-4"/> Nova seção</button>
       </div>
 
-      <div className="shrink-0 px-3 pt-1 pb-3 bg-slate-50">
-        <button onClick={() => setNewSection(true)} className="w-full bg-white border border-dashed border-slate-300 rounded-2xl py-3 text-slate-500 font-semibold flex items-center justify-center gap-2"><Icon name="plus" className="w-4 h-4"/> Nova seção</button>
-      </div>
-
-      <button onClick={() => setChatOpen(true)} className="absolute right-4 bottom-24 md:bottom-6 w-14 h-14 rounded-full bg-emerald-500 text-white shadow-xl shadow-emerald-500/40 flex items-center justify-center"><Icon name="chat" className="w-6 h-6"/></button>
+      <button onClick={() => setChatOpen(true)} className="absolute right-4 bottom-4 w-14 h-14 rounded-full bg-emerald-500 text-white shadow-xl shadow-emerald-500/40 flex items-center justify-center"><Icon name="chat" className="w-6 h-6"/></button>
 
       {addingTo && <AddItemSheet section={addingTo} produtos={produtos} comidas={comidas} onClose={() => setAddingTo(null)} onAdded={() => { setAddingTo(null); showToast(`Adicionado em ${addingTo.name}`); reload(); }} />}
       {editingItem && <AddItemSheet existing={editingItem} produtos={produtos} comidas={comidas} onClose={() => setEditingItem(null)} onAdded={() => { setEditingItem(null); showToast("Item atualizado"); reload(); }} onRegisterProduto={(it) => { setEditingItem(null); setRegisteringItem(it); }} />}
@@ -237,12 +234,30 @@ function AddItemSheet({ section, existing, produtos, comidas, onClose, onAdded, 
   );
   const [qty, setQty] = useState(existing?.quantity ?? 100);
   const [comidaUnit, setComidaUnit] = useState(existing?.comidaId && existing?.unit === "g" ? "g" : "porcao");
+  // Produtos are always stored in grams. Editing an existing produto starts in grams;
+  // a fresh pick of a produto that carries a serving hint switches to "porcao" (see pick()).
+  const [produtoUnit, setProdutoUnit] = useState("g");
 
   const list = (tab === "produtos" ? produtos : comidas).filter(x => !q || x.name.toLowerCase().includes(q.toLowerCase()));
 
   const pickedComida = picked?.kind === "comida" ? comidas.find(x => x.id === picked.id) : null;
   const canGram = !!pickedComida && pickedComida.yieldGrams > 0;          // batch comida → can portion by grams
   const effUnit = canGram ? comidaUnit : "porcao";
+
+  const pickedProduto = picked?.kind === "produto" ? produtos.find(x => x.id === picked.id) : null;
+  const canPortion = !!pickedProduto && pickedProduto.servingGrams > 0;   // produto has a "1 pote = Xg" hint
+  const effProdUnit = canPortion ? produtoUnit : "g";
+
+  // Pick a produto/comida from the list. For a produto with a serving hint, default to
+  // logging by portion (the whole point — the user knows "1 pote", not the grams).
+  function pick(x) {
+    const kind = tab === "produtos" ? "produto" : "comida";
+    setPicked({ kind, id: x.id });
+    if (kind === "produto") {
+      if (x.servingGrams > 0) { setProdutoUnit("porcao"); setQty(1); }
+      else { setProdutoUnit("g"); setQty(100); }
+    }
+  }
 
   async function confirm() {
     let item;
@@ -255,9 +270,10 @@ function AddItemSheet({ section, existing, produtos, comidas, onClose, onAdded, 
                carbs: existing.carbs != null ? +(existing.carbs * scale).toFixed(1) : null,
                fat:   existing.fat   != null ? +(existing.fat   * scale).toFixed(1) : null };
     } else if (picked?.kind === "produto") {
-      const p = produtos.find(x => x.id === picked.id);
-      item = { produtoId: p.id, comidaId: null, name: p.name, quantity: qty,
-               calories: Math.round(p.caloriesPerGram * qty), protein: +(p.proteinPerGram * qty).toFixed(1), unit: "g" };
+      const p = pickedProduto;
+      const grams = effProdUnit === "porcao" ? +(qty * p.servingGrams).toFixed(1) : qty;
+      item = { produtoId: p.id, comidaId: null, name: p.name, quantity: grams,
+               calories: Math.round(p.caloriesPerGram * grams), protein: +(p.proteinPerGram * grams).toFixed(1), unit: "g" };
     } else if (picked?.kind === "comida") {
       const c = pickedComida;
       if (effUnit === "g") {
@@ -276,9 +292,12 @@ function AddItemSheet({ section, existing, produtos, comidas, onClose, onAdded, 
   }
 
   const showQtyEditor = isUnregistered || !!picked;
-  const isGrams = isUnregistered || picked?.kind === "produto" || effUnit === "g";
+  const isPortion = effProdUnit === "porcao" || (picked?.kind === "comida" && effUnit === "porcao");
+  const isGrams = !isPortion;
   const qtyUnit = isGrams ? "gramas" : "porções";
   const qtyStep = isGrams ? 10 : 1;
+  // In portion mode for a produto, show what that resolves to in grams so it's not a mystery.
+  const portionGrams = canPortion && effProdUnit === "porcao" ? +(qty * pickedProduto.servingGrams).toFixed(1) : null;
   const canSave = isUnregistered ? qty > 0 : !!picked;
 
   return (
@@ -313,7 +332,7 @@ function AddItemSheet({ section, existing, produtos, comidas, onClose, onAdded, 
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar..." className="w-full mb-3 bg-slate-100 rounded-xl px-4 py-2.5 outline-none"/>
           <div className="max-h-64 overflow-y-auto scroll-hide space-y-1 mb-3">
             {list.map(x => (
-              <button key={x.id} onClick={() => setPicked({ kind: tab === "produtos" ? "produto" : "comida", id: x.id })} className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center justify-between ${picked?.id === x.id ? "bg-emerald-50 border border-emerald-300" : "hover:bg-slate-50 border border-transparent"}`}>
+              <button key={x.id} onClick={() => pick(x)} className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center justify-between ${picked?.id === x.id ? "bg-emerald-50 border border-emerald-300" : "hover:bg-slate-50 border border-transparent"}`}>
                 <div className="font-semibold text-slate-800 text-sm">{x.name}{x.brand ? <span className="text-slate-400 font-normal"> ({x.brand})</span> : null}</div>
                 {picked?.id === x.id && <Icon name="check" className="w-5 h-5 text-emerald-600"/>}
               </button>
@@ -328,6 +347,18 @@ function AddItemSheet({ section, existing, produtos, comidas, onClose, onAdded, 
           ))}
         </div>
       )}
+      {canPortion && (
+        <>
+          <div className="flex gap-1 bg-slate-100 rounded-full p-1 mb-1">
+            {[["porcao", pickedProduto.servingLabel?.trim() || "porções"], ["g", "gramas"]].map(([u, label]) => (
+              <button key={u} onClick={() => { setProdutoUnit(u); setQty(u === "g" ? 100 : 1); }} className={`flex-1 py-2 rounded-full text-sm font-semibold ${produtoUnit === u ? "bg-white shadow text-slate-900" : "text-slate-500"}`}>{label}</button>
+            ))}
+          </div>
+          <div className="text-[11px] text-slate-400 mb-3 px-1">
+            1 {pickedProduto.servingLabel?.trim() || "porção"} = {pickedProduto.servingGrams}g
+          </div>
+        </>
+      )}
       {showQtyEditor && (
         <div className="bg-slate-50 rounded-xl p-3 mb-3">
           <div className="text-xs text-slate-500 mb-1">Quantidade ({qtyUnit})</div>
@@ -336,6 +367,11 @@ function AddItemSheet({ section, existing, produtos, comidas, onClose, onAdded, 
             <NumberInput value={qty} onChange={v => setQty(v ?? 0)} className="flex-1 text-center bg-white rounded-lg py-2 border border-slate-200 font-bold text-lg"/>
             <button onClick={() => setQty(v => (v ?? 0) + qtyStep)} className="w-9 h-9 rounded-full bg-white border border-slate-200 font-bold">+</button>
           </div>
+          {portionGrams != null && (
+            <div className="text-[11px] text-slate-500 mt-2 text-center">
+              = {portionGrams}g · {Math.round(pickedProduto.caloriesPerGram * portionGrams)} kcal
+            </div>
+          )}
         </div>
       )}
       <SaveButton disabled={!canSave} onClick={confirm} savingLabel={isEdit ? "Salvando…" : "Adicionando…"} className="w-full bg-emerald-500 disabled:bg-slate-200 text-white font-semibold py-3 rounded-full">{isEdit ? "Salvar" : "Adicionar"}</SaveButton>
