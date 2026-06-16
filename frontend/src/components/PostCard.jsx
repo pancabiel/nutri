@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Icon from "./Icon.jsx";
 import RecipeSnapshotCard from "./RecipeSnapshotCard.jsx";
+import ConfirmDialog from "./ConfirmDialog.jsx";
 import { api } from "../lib/api.js";
 import { useStore } from "../state/store.jsx";
 
@@ -20,6 +21,7 @@ export default function PostCard({ post, currentUserId, onOpenProfile, onDeleted
   const [liked, setLiked] = useState(!!post.liked);
   const [likeCount, setLikeCount] = useState(post.likeCount || 0);
   const [saving, setSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const a = post.author || {};
   const isOwn = currentUserId && a.userId === currentUserId;
   const displayName = a.displayName || a.username || "Usuário";
@@ -50,6 +52,7 @@ export default function PostCard({ post, currentUserId, onOpenProfile, onDeleted
   }
 
   async function remove() {
+    setConfirmOpen(false);
     try { await api.feed.remove(post.id); onDeleted?.(post.id); }
     catch (e) { showToast(e.message || "Erro ao excluir", "error"); }
   }
@@ -66,7 +69,7 @@ export default function PostCard({ post, currentUserId, onOpenProfile, onDeleted
         </button>
         <div className="flex-1" />
         {isOwn && (
-          <button onClick={remove} className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500">
+          <button onClick={() => setConfirmOpen(true)} className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500">
             <Icon name="trash" className="w-4 h-4" />
           </button>
         )}
@@ -93,6 +96,15 @@ export default function PostCard({ post, currentUserId, onOpenProfile, onDeleted
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Excluir post?"
+        message="Este post será removido do feed."
+        detail={post.caption || undefined}
+        onConfirm={remove}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </div>
   );
 }

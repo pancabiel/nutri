@@ -1,6 +1,6 @@
 import Icon from "./Icon.jsx";
 
-export default function Sheet({ title, children, onClose, fullScreen = false }) {
+export default function Sheet({ title, children, onClose, fullScreen = false, hideHandle = false, tall = false }) {
   if (fullScreen) {
     // Mobile: edge-to-edge. Desktop (≥md): a centered, width-capped card over a
     // dimmed backdrop. `fixed` so it covers the viewport even when rendered at the
@@ -22,8 +22,8 @@ export default function Sheet({ title, children, onClose, fullScreen = false }) 
   return (
     <div className="absolute inset-0 z-30 flex items-end justify-center md:items-center">
       <div onClick={onClose} className="absolute inset-0 bg-black/40 fade-in" />
-      <div className="relative w-full md:max-w-md md:mx-4 bg-white rounded-t-3xl md:rounded-3xl p-5 pb-6 max-h-[90%] md:max-h-[85%] overflow-y-auto scroll-hide pop">
-        <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mb-3" />
+      <div className={`relative w-full md:max-w-md md:mx-4 bg-white rounded-t-3xl md:rounded-3xl p-5 pb-6 ${tall ? "max-h-[95%] md:max-h-[90%]" : "max-h-[90%] md:max-h-[85%]"} overflow-y-auto scroll-hide pop`}>
+        {!hideHandle && <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mb-3" />}
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-slate-900">{title}</h2>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center"><Icon name="close" className="w-4 h-4" /></button>

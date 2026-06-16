@@ -116,3 +116,8 @@ html.dark body { background: #0b1120; color: #e2e8f0; }
 /* Brighten emerald borders so panels stay visible on dark */
 .dark .border-emerald-300 { border-color: rgb(16 185 129 / 0.45); }
 .dark .border-emerald-200 { border-color: rgb(16 185 129 / 0.35); }
+
+/* amber-700 text always sits on an amber tint (bg-amber-100/50), which dims to a
+   translucent amber fill on dark — dark amber-on-amber is unreadable. Lift the
+   text to a brighter amber so it stays legible (e.g. the "Texto" buttons). */
+.dark .text-amber-700 { color: #fbbf24; }

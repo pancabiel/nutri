@@ -24,7 +24,7 @@ export default function ProdutoForm({ produto, prefill, title, hint, onClose, on
   const showHint = hint ?? (prefill ? "Extraído da tabela nutricional. Confirme e salve." : null);
 
   return (
-    <Sheet onClose={onClose} title={sheetTitle}>
+    <Sheet onClose={onClose} title={sheetTitle} hideHandle tall>
       {showHint && (
         <div className="mb-3 flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
           <Icon name="sparkles" className="w-4 h-4"/> {showHint}
