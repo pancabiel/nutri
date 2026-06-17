@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Icon from "./Icon.jsx";
 import Sheet from "./Sheet.jsx";
 import SaveButton from "./SaveButton.jsx";
+import { SkeletonRows } from "./Skeleton.jsx";
 import { api } from "../lib/api.js";
 import { uploadImage } from "../lib/storage.js";
 import { useStore } from "../state/store.jsx";
@@ -193,7 +194,7 @@ function PickList({ items, onPick }) {
   );
 }
 
-const Loading = () => <div className="py-8 text-center text-slate-400 text-sm">Carregando…</div>;
+const Loading = () => <SkeletonRows rows={5} avatar={false} />;
 const Empty = ({ text }) => <div className="py-8 text-center text-slate-400 text-sm">{text}</div>;
 
 function dayLabel(date) {

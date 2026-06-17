@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase.js";
 import { getTheme, setTheme } from "../lib/theme.js";
 import SocialProfileEditor from "../components/SocialProfileEditor.jsx";
 import { Avatar } from "../components/PostCard.jsx";
+import { Skel } from "../components/Skeleton.jsx";
 import { useStore } from "../state/store.jsx";
 import {
   isPushSupported, isStandalone, getPermission, isSubscribed,
@@ -413,7 +414,16 @@ export default function SettingsScreen({ onClose, profile: profileProp, email: e
 function DefaultSectionsSection({ list, dirty, busy, onMove, onRemove, onAdd, onReset, onSave }) {
   const [draft, setDraft] = useState("");
   if (!list) {
-    return <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-400">Carregando…</div>;
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100">
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} className="px-4 py-3 flex items-center gap-3">
+            <Skel className="h-4 w-32 flex-1" />
+            <Skel className="h-5 w-5 rounded" />
+          </div>
+        ))}
+      </div>
+    );
   }
   const isDefault = JSON.stringify(list) === JSON.stringify(CANONICAL_SECTIONS);
   function submitAdd() { onAdd(draft); setDraft(""); }

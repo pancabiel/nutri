@@ -4,6 +4,7 @@ import Sheet from "./Sheet.jsx";
 import PostCard, { Avatar } from "./PostCard.jsx";
 import SocialProfileEditor from "./SocialProfileEditor.jsx";
 import FollowListSheet from "./FollowListSheet.jsx";
+import { Skel, SkeletonPosts } from "./Skeleton.jsx";
 import { api } from "../lib/api.js";
 import { useStore } from "../state/store.jsx";
 
@@ -55,7 +56,19 @@ export default function ProfileScreen({ username, currentUserId, onClose, onOpen
       {notFound ? (
         <div className="py-16 text-center text-slate-400">Usuário não encontrado.</div>
       ) : !profile ? (
-        <div className="py-16 text-center text-slate-400">Carregando…</div>
+        <>
+          <div className="flex flex-col items-center text-center mb-4">
+            <div className="w-20 h-20 rounded-full bg-slate-200 animate-pulse" />
+            <Skel className="h-4 w-32 mt-3" />
+            <Skel className="h-3 w-20 mt-2" />
+            <div className="flex gap-6 mt-4">
+              <Skel className="h-3 w-20" />
+              <Skel className="h-3 w-20" />
+            </div>
+            <Skel className="h-9 w-28 rounded-full mt-4" />
+          </div>
+          <SkeletonPosts count={2} />
+        </>
       ) : (
         <>
           <div className="flex flex-col items-center text-center mb-4">

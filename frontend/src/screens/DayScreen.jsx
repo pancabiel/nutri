@@ -5,6 +5,7 @@ import ConfirmDialog from "../components/ConfirmDialog.jsx";
 import ProdutoForm from "../components/ProdutoForm.jsx";
 import NumberInput from "../components/NumberInput.jsx";
 import SaveButton from "../components/SaveButton.jsx";
+import { Skel } from "../components/Skeleton.jsx";
 import { api } from "../lib/api.js";
 import { useStore } from "../state/store.jsx";
 import { comidaTotals, comidaPerGram } from "../lib/macros.js";
@@ -28,7 +29,7 @@ export default function DayScreen({ date, onBack, onViewMonth, active = true }) 
 
   async function reload() { setDay(await api.meals.day(date)); }
 
-  if (!day) return <div className="p-6 text-slate-400">Carregando…</div>;
+  if (!day) return <DaySkeleton onBack={onBack} />;
 
   const totals = day.sections.reduce((acc, s) => {
     s.items.forEach(it => { acc.calories += it.calories; acc.protein += it.protein; });
@@ -184,6 +185,53 @@ export default function DayScreen({ date, onBack, onViewMonth, active = true }) 
         onConfirm={confirm?.onConfirm}
         onCancel={() => setConfirm(null)}
       />
+    </div>
+  );
+}
+
+// Loading placeholder mirroring the day layout: header w/ 3 stat cards + section cards.
+function DaySkeleton({ onBack }) {
+  return (
+    <div className="flex flex-col h-full bg-slate-50">
+      <div className="shrink-0 bg-white border-b border-slate-200 px-3 pt-3 pb-4">
+        <div className="flex items-center gap-2 mb-2">
+          <button onClick={onBack} className="w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center"><Icon name="back"/></button>
+          <div className="space-y-1.5">
+            <Skel className="h-2.5 w-12" />
+            <Skel className="h-4 w-40" />
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {[0, 1, 2].map(i => (
+            <div key={i} className="rounded-xl bg-white border border-slate-200 p-3 space-y-2">
+              <Skel className="h-7 w-7 rounded-lg" />
+              <Skel className="h-2.5 w-12" />
+              <Skel className="h-4 w-10" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 scroll-hide">
+        {[0, 1].map(s => (
+          <div key={s} className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <div className="px-4 py-3 space-y-2">
+              <Skel className="h-3.5 w-28" />
+              <Skel className="h-2.5 w-20" />
+            </div>
+            <div className="border-t border-slate-100 divide-y divide-slate-100">
+              {[0, 1].map(i => (
+                <div key={i} className="px-4 py-2.5 flex items-center gap-3">
+                  <Skel className="w-8 h-8 rounded-lg shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skel className="h-3 w-1/2" />
+                    <Skel className="h-2.5 w-1/3" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Sheet from "./Sheet.jsx";
 import { Avatar } from "./PostCard.jsx";
+import { SkeletonRows } from "./Skeleton.jsx";
 import { api } from "../lib/api.js";
 import { useStore } from "../state/store.jsx";
 
@@ -41,7 +42,7 @@ export default function FollowListSheet({ userId, mode, title, onClose, onOpenPr
     <Sheet onClose={onClose} title={title}>
       <div className="max-h-[70vh] overflow-y-auto scroll-hide space-y-1">
         {list === null ? (
-          <div className="py-8 text-center text-slate-400 text-sm">Carregando…</div>
+          <SkeletonRows rows={6} />
         ) : list.length === 0 ? (
           <div className="py-8 text-center text-slate-400 text-sm">
             {mode === "followers" ? "Nenhum seguidor ainda." : "Ainda não está seguindo ninguém."}

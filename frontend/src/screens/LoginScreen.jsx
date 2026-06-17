@@ -123,10 +123,15 @@ export default function LoginScreen() {
 }
 
 function Leaf() {
+  // lucide "leaf": diagonal shape (body upper-right, stem lower-left). Nudge it down-left
+  // a hair so the visual mass optically centers in the badge, and thin the stroke so the
+  // tip/vein stay crisp at this size instead of looking blobby.
   return (
-    <svg viewBox="0 0 24 24" className="w-9 h-9 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19.2 2.96c1.4 9.3-4.46 17.62-13.78 17.03L4 20" />
-      <path d="M2 21c0-3 1.85-5.36 5.08-6" />
+    <svg viewBox="0 0 24 24" className="w-9 h-9 text-white" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <g transform="translate(-0.5 0.75)">
+        <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19.2 2.96c1.4 9.3-4.46 17.62-13.78 17.03L4 20" />
+        <path d="M2 21c0-3 1.85-5.36 5.08-6" />
+      </g>
     </svg>
   );
 }

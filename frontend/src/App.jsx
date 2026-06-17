@@ -11,6 +11,7 @@ import OnboardingScreen from "./screens/OnboardingScreen.jsx";
 import SettingsScreen from "./screens/SettingsScreen.jsx";
 import ProfileScreen from "./components/ProfileScreen.jsx";
 import UpgradeModal from "./components/UpgradeModal.jsx";
+import { Skel, SkeletonPosts } from "./components/Skeleton.jsx";
 import { todayISO, api } from "./lib/api.js";
 import { supabase } from "./lib/supabase.js";
 
@@ -269,10 +270,30 @@ export default function App() {
   );
 }
 
+// App-shell skeleton shown while the session + profile resolve, mirroring the
+// Shell chrome (header + content + bottom tab bar) so the load feels seamless.
 function Splash() {
   return (
-    <div className="h-full w-full flex items-center justify-center bg-white">
-      <div className="text-slate-400 text-sm">Carregando…</div>
+    <div className="h-full w-full flex justify-center bg-slate-100">
+      <div className="w-full max-w-[640px] h-full flex flex-col bg-white relative overflow-hidden">
+        <header className="shrink-0 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),8px)] pb-2 border-b border-slate-100">
+          <span className="text-sm font-semibold text-slate-700">Nutri</span>
+          <Skel className="h-6 w-12 rounded-full" />
+        </header>
+        <div className="flex-1 overflow-hidden px-3 py-3">
+          <SkeletonPosts count={3} />
+        </div>
+        <nav className="shrink-0 border-t border-slate-200 bg-white px-2 pt-1.5 pb-[max(env(safe-area-inset-bottom),8px)]">
+          <div className="grid grid-cols-4 gap-1 max-w-md mx-auto">
+            {[0, 1, 2, 3].map(i => (
+              <div key={i} className="flex flex-col items-center gap-1 py-1.5">
+                <Skel className="h-6 w-6 rounded-lg" />
+                <Skel className="h-2 w-10" />
+              </div>
+            ))}
+          </div>
+        </nav>
+      </div>
     </div>
   );
 }

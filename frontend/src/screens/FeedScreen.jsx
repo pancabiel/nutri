@@ -4,6 +4,7 @@ import PostCard, { Avatar } from "../components/PostCard.jsx";
 import ComposePostSheet from "../components/ComposePostSheet.jsx";
 import UserSearchSheet from "../components/UserSearchSheet.jsx";
 import SocialProfileEditor from "../components/SocialProfileEditor.jsx";
+import { SkeletonPosts } from "../components/Skeleton.jsx";
 import { api } from "../lib/api.js";
 import { useStore } from "../state/store.jsx";
 
@@ -80,7 +81,10 @@ export default function FeedScreen({ profile, currentUserId, onProfileChanged })
         {posts.map((p) => (
           <PostCard key={p.id} post={p} currentUserId={currentUserId} onOpenProfile={openProfile} onDeleted={(id) => setPosts((ps) => ps.filter((x) => x.id !== id))} />
         ))}
-        {loading && <div className="py-6 text-center text-slate-400 text-sm">Carregando…</div>}
+        {loading && posts.length === 0 && <SkeletonPosts count={3} />}
+        {loading && posts.length > 0 && (
+          <div className="py-6 flex justify-center"><div className="w-6 h-6 rounded-full border-2 border-slate-200 border-t-emerald-500 animate-spin" /></div>
+        )}
         {!loading && posts.length === 0 && (
           <div className="py-16 text-center text-slate-400 text-sm px-6">
             Seu feed está vazio. Busque <button onClick={() => setSearching(true)} className="text-emerald-600 font-semibold">pessoas para seguir</button> ou publique algo.
