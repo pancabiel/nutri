@@ -38,7 +38,7 @@ $paramOverrides = @(
     "AppPassword=$($envVars['APP_PASSWORD'])"
 ) -join ' '
 
-sam deploy -t sam.native.yaml --profile nutri --no-confirm-changeset --parameter-overrides $paramOverrides
+sam deploy -t sam.native.yaml --profile pancabiel --no-confirm-changeset --parameter-overrides $paramOverrides
 if ($LASTEXITCODE -ne 0) { Write-Error "Deploy failed"; exit 1 }
 
 Write-Host "==> Done." -ForegroundColor Green
