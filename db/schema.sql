@@ -570,3 +570,27 @@ create policy "write own likes" on post_likes for all using (user_id = (select a
 -- (MealRepository.ensureDay). null/empty → backend falls back to the canonical
 -- four ("Café da manhã", "Almoço", "Lanche", "Jantar"). Editable in Settings.
 alter table profiles add column if not exists default_sections text[];
+
+-- ============================================================
+-- PRODUTO PHOTOS (capa + tabela nutricional)
+-- ============================================================
+-- URLs públicas completas do bucket `produtos` (path "{auth.uid()}/{uuid}.jpg").
+-- O backend (ProdutoImageUrls) zera pra null qualquer URL fora do prefixo
+-- "<supabase>/storage/v1/object/public/produtos/<user_id>/" — a capa vai pro
+-- snapshot do feed, então URL externa (tracking pixel) não pode entrar.
+alter table produtos add column if not exists cover_url text;
+alter table produtos add column if not exists label_url text;
+
+-- Storage: bucket PÚBLICO, upload direto do frontend. Delete best-effort pelo
+-- frontend ao trocar/remover foto ou excluir o produto (por isso a policy de delete).
+insert into storage.buckets (id, name, public) values ('produtos','produtos',true)
+  on conflict (id) do nothing;
+drop policy if exists "own produto image upload" on storage.objects;
+create policy "own produto image upload" on storage.objects for insert to authenticated
+  with check (bucket_id = 'produtos' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "own produto image delete" on storage.objects;
+create policy "own produto image delete" on storage.objects for delete to authenticated
+  using (bucket_id = 'produtos' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "public produto image read" on storage.objects;
+create policy "public produto image read" on storage.objects for select
+  using (bucket_id = 'produtos');

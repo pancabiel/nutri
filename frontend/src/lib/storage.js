@@ -50,6 +50,20 @@ export async function uploadImage(bucket, file) {
   return data.publicUrl;
 }
 
+/** Object path ("{uid}/{uuid}.jpg") of a public URL in {@code bucket}, or null if it isn't one. */
+export function storagePath(bucket, url) {
+  const marker = `/storage/v1/object/public/${bucket}/`;
+  const i = url ? url.indexOf(marker) : -1;
+  return i < 0 ? null : decodeURIComponent(url.slice(i + marker.length));
+}
+
+/** Best-effort delete of uploaded images by public URL. Never throws: orphans are acceptable. */
+export async function removeImages(bucket, urls) {
+  const paths = (urls || []).map((u) => storagePath(bucket, u)).filter(Boolean);
+  if (!paths.length) return;
+  try { await supabase.storage.from(bucket).remove(paths); } catch { /* best-effort */ }
+}
+
 function loadImage(url) {
   return new Promise((resolve, reject) => {
     const img = new Image();

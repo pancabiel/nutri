@@ -36,7 +36,7 @@ public class ProdutoResolver {
         double protPerGram = (it.protein_per_100g()  == null ? 0.0 : it.protein_per_100g())  / 100.0;
         var p = produtos.create(uid, new Produto(
             null, safeName(it.name()), null,
-            calPerGram, protPerGram, null, null, null, null, null));
+            calPerGram, protPerGram, null, null, null, null, null, null, null));
         return new Ref(p.id(), true);
     }
 

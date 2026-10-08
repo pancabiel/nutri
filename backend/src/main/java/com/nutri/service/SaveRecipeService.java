@@ -158,7 +158,7 @@ public class SaveRecipeService {
         var existing = produtos.byName(viewer, name);
         if (existing.isPresent()) return existing.get();
         return produtos.create(viewer, new Produto(null, name, brand,
-            calPerGram, protPerGram, carbsPerGram, fatPerGram, servingGrams, servingLabel, null));
+            calPerGram, protPerGram, carbsPerGram, fatPerGram, servingGrams, servingLabel, null, null, null));
     }
 
     private static String str(JsonNode n, String field, String dflt) {

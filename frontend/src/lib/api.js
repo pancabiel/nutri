@@ -141,7 +141,11 @@ export const api = {
   // ai
   chat:        (msg, date, section) => http(`/chat-log`, { method: "POST", body: JSON.stringify({ message: msg, date, section }) }),
   analyzeMeal: (b64, mime)   => http(`/analyze-meal-image`, { method: "POST", body: JSON.stringify({ imageBase64: b64, mediaType: mime }) }),
-  scanLabel:   (b64, mime)   => http(`/scan-nutrition-label`, { method: "POST", body: JSON.stringify({ imageBase64: b64, mediaType: mime }) }),
+  // cover (frente da embalagem) is optional: same call, AI also reads name + brand from it.
+  scanLabel:   (b64, mime, cover = null) => http(`/scan-nutrition-label`, { method: "POST", body: JSON.stringify({
+    imageBase64: b64, mediaType: mime,
+    ...(cover ? { coverBase64: cover.b64, coverMediaType: cover.mime } : {}),
+  }) }),
 };
 
 export const todayISO = () => {
@@ -210,7 +214,23 @@ function loadImage(url) {
   });
 }
 
-export function pickPhoto({ camera = false } = {}) {
+/** Downscaled base64 + mime for the vision API, from a File/Blob. */
+export async function photoPayload(file) {
+  const b64 = await fileToBase64(file);
+  // After downscaling we always send JPEG; for raw fallbacks keep the original mime.
+  const mime = file.type && file.type.startsWith("image/") ? "image/jpeg" : (file.type || "image/jpeg");
+  return { b64, mime };
+}
+
+/** Same as {@link photoPayload} but for an already-uploaded (public) image URL. */
+export async function urlPhotoPayload(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return photoPayload(await res.blob());
+}
+
+/** Opens the file picker and resolves the raw File (or null if cancelled). */
+export function pickFile({ camera = false } = {}) {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
@@ -218,15 +238,16 @@ export function pickPhoto({ camera = false } = {}) {
     if (camera) input.capture = "environment";
     input.style.display = "none";
     document.body.appendChild(input);
-    input.onchange = async () => {
+    input.onchange = () => {
       const file = input.files?.[0];
       document.body.removeChild(input);
-      if (!file) { resolve(null); return; }
-      const b64 = await fileToBase64(file);
-      // After downscaling we always send JPEG; for raw fallbacks keep the original mime.
-      const mime = file.type && file.type.startsWith("image/") ? "image/jpeg" : (file.type || "image/jpeg");
-      resolve({ b64, mime });
+      resolve(file || null);
     };
     input.click();
   });
+}
+
+export async function pickPhoto(opts) {
+  const file = await pickFile(opts);
+  return file ? photoPayload(file) : null;
 }

@@ -2,14 +2,16 @@ import { useState } from "react";
 import Icon from "../components/Icon.jsx";
 import ConfirmDialog from "../components/ConfirmDialog.jsx";
 import ProdutoForm from "../components/ProdutoForm.jsx";
-import { api, pickPhoto } from "../lib/api.js";
+import ScanProdutoSheet from "../components/ScanProdutoSheet.jsx";
+import { api } from "../lib/api.js";
+import { removeImages } from "../lib/storage.js";
 import { useStore } from "../state/store.jsx";
 
 export default function ProdutosScreen() {
   const { produtos, refreshProdutos, showToast } = useStore();
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState(null);
-  const [scanning, setScanning] = useState(false);
+  const [scanning, setScanning] = useState(false);   // capture sheet open
   const [scanResult, setScanResult] = useState(null);
   const [confirm, setConfirm] = useState(null);
 
@@ -21,9 +23,10 @@ export default function ProdutosScreen() {
     setEditing(null);
     refreshProdutos();
   }
-  async function remove(id) {
+  async function remove(p) {
     try {
-      await api.produtos.remove(id);
+      await api.produtos.remove(p.id);
+      removeImages("produtos", [p.coverUrl, p.labelUrl]);
       showToast("Produto removido");
       refreshProdutos();
     } catch (e) {
@@ -33,18 +36,8 @@ export default function ProdutosScreen() {
   function askRemove(p) {
     setConfirm({
       detail: p.brand ? `${p.name} · ${p.brand}` : p.name,
-      onConfirm: async () => { setConfirm(null); await remove(p.id); },
+      onConfirm: async () => { setConfirm(null); await remove(p); },
     });
-  }
-
-  async function onScan() {
-    const picked = await pickPhoto();
-    if (!picked) return;
-    setScanning(true);
-    try {
-      const result = await api.scanLabel(picked.b64, picked.mime);
-      setScanResult(result);
-    } finally { setScanning(false); }
   }
 
   return (
@@ -56,7 +49,7 @@ export default function ProdutosScreen() {
             <p className="text-sm text-slate-500">{produtos.length} itens</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={onScan} disabled={scanning} className="h-10 px-3 rounded-full bg-slate-900 disabled:opacity-60 text-white text-sm font-semibold flex items-center gap-1.5 shadow"><Icon name="camera" className="w-4 h-4"/> {scanning ? "Lendo…" : "Scan"}</button>
+            <button onClick={() => setScanning(true)} className="h-10 px-3 rounded-full bg-slate-900 text-white text-sm font-semibold flex items-center gap-1.5 shadow"><Icon name="camera" className="w-4 h-4"/> Scan</button>
             <button onClick={() => setEditing("new")} className="h-10 w-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow"><Icon name="plus"/></button>
           </div>
         </div>
@@ -65,7 +58,7 @@ export default function ProdutosScreen() {
       <div className="flex-1 overflow-y-auto p-3 space-y-2 scroll-hide">
         {list.map(p => (
           <div key={p.id} className="bg-white rounded-2xl border border-slate-200 p-3 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-lg shrink-0">🥚</div>
+            <ProdutoThumb key={p.coverUrl || "none"} url={p.coverUrl}/>
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-slate-800 truncate">{p.name}</div>
               <div className="text-[11px] text-slate-500">{p.brand ? `${p.brand} · ` : ""}{Math.round(p.caloriesPerGram * 100)} kcal · {(p.proteinPerGram * 100).toFixed(1)}g prot / 100g</div>
@@ -78,7 +71,8 @@ export default function ProdutosScreen() {
       </div>
 
       {editing && <ProdutoForm produto={editing === "new" ? null : editing} onClose={() => setEditing(null)} onSave={save}/>}
-      {scanResult && <ProdutoForm produto={null} prefill={scanResult} onClose={() => setScanResult(null)} onSave={(p) => { save(p); setScanResult(null); }}/>}
+      {scanning && <ScanProdutoSheet onClose={() => setScanning(false)} onResult={(r) => { setScanning(false); setScanResult(r); }}/>}
+      {scanResult && <ProdutoForm produto={null} prefill={scanResult} onClose={() => setScanResult(null)} onSave={async (p) => { await save(p); setScanResult(null); }}/>}
       <ConfirmDialog
         open={!!confirm}
         title="Excluir produto?"
@@ -91,3 +85,11 @@ export default function ProdutosScreen() {
   );
 }
 
+/** Capa do produto (frente da embalagem) or the 🥚 fallback when missing / broken. */
+function ProdutoThumb({ url }) {
+  const [broken, setBroken] = useState(false);
+  if (!url || broken) {
+    return <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-lg shrink-0">🥚</div>;
+  }
+  return <img src={url} alt="" loading="lazy" onError={() => setBroken(true)} className="w-10 h-10 rounded-xl object-cover bg-slate-100 shrink-0"/>;
+}

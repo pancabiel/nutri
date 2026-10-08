@@ -3,6 +3,7 @@ package com.nutri.resource;
 import com.nutri.auth.CurrentUser;
 import com.nutri.model.Produto;
 import com.nutri.repository.ProdutoRepository;
+import com.nutri.service.ProdutoImageUrls;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -18,6 +19,7 @@ public class ProdutoResource {
 
     @Inject ProdutoRepository repo;
     @Inject CurrentUser user;
+    @Inject ProdutoImageUrls imageUrls;
 
     @GET
     public List<Produto> list(@QueryParam("q") String query,
@@ -34,10 +36,16 @@ public class ProdutoResource {
     }
 
     @POST
-    public Produto create(Produto p) { return repo.create(user.userId(), p); }
+    public Produto create(Produto p) {
+        var uid = user.userId();
+        return repo.create(uid, imageUrls.sanitize(uid, p));
+    }
 
     @PUT @Path("{id}")
-    public Produto update(@PathParam("id") UUID id, Produto p) { return repo.update(user.userId(), id, p); }
+    public Produto update(@PathParam("id") UUID id, Produto p) {
+        var uid = user.userId();
+        return repo.update(uid, id, imageUrls.sanitize(uid, p));
+    }
 
     @DELETE @Path("{id}")
     public Response delete(@PathParam("id") UUID id) {

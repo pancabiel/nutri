@@ -22,10 +22,12 @@ public class AnalyzeResource {
 
     @POST @Path("scan-nutrition-label")
     public AiService.NutritionLabel scanLabel(ImageRequest req) {
-        return ai.scanNutritionLabel(req.imageBase64(), defaultMime(req.mediaType()));
+        return ai.scanNutritionLabel(req.imageBase64(), defaultMime(req.mediaType()),
+            req.coverBase64(), defaultMime(req.coverMediaType()));
     }
 
     private static String defaultMime(String m) { return m == null || m.isBlank() ? "image/jpeg" : m; }
 
-    public record ImageRequest(String imageBase64, String mediaType) {}
+    /** {@code coverBase64} (frente da embalagem) is optional and only read by scan-nutrition-label. */
+    public record ImageRequest(String imageBase64, String mediaType, String coverBase64, String coverMediaType) {}
 }

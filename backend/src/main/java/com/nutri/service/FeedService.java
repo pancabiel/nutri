@@ -128,6 +128,9 @@ public class FeedService {
         putNullable(n, "fatPerGram", p.fatPerGram());
         putNullable(n, "servingGrams", p.servingGrams());
         if (p.servingLabel() != null) n.put("servingLabel", p.servingLabel());
+        // Capa só (a foto da tabela é referência pessoal). Já validada no write por
+        // ProdutoImageUrls; quem salvar o post não herda (o prefixo é do autor).
+        if (p.coverUrl() != null) n.put("coverUrl", p.coverUrl());
         return n;
     }
 

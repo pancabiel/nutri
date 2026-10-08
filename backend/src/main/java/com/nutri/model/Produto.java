@@ -13,5 +13,7 @@ public record Produto(
     Double fatPerGram,
     Double servingGrams,
     String servingLabel,
+    String coverUrl,     // capa (frente da embalagem) — URL pública do bucket `produtos`
+    String labelUrl,     // foto da tabela nutricional, só referência pessoal
     OffsetDateTime createdAt
 ) {}

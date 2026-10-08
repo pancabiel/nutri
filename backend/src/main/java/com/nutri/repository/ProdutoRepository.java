@@ -75,8 +75,9 @@ public class ProdutoRepository {
         var sql = """
             insert into produtos
               (id, user_id, name, brand, calories_per_gram, protein_per_gram,
-               carbs_per_gram, fat_per_gram, serving_grams, serving_label, created_at)
-            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
+               carbs_per_gram, fat_per_gram, serving_grams, serving_label,
+               cover_url, label_url, created_at)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
             returning *""";
         try (var c = ds.getConnection();
              var s = c.prepareStatement(sql)) {
@@ -90,6 +91,8 @@ public class ProdutoRepository {
             setNullableDouble(s, 8, p.fatPerGram());
             setNullableDouble(s, 9, p.servingGrams());
             s.setString(10, p.servingLabel());
+            s.setString(11, p.coverUrl());
+            s.setString(12, p.labelUrl());
             try (var rs = s.executeQuery()) {
                 rs.next();
                 return map(rs);
@@ -102,7 +105,8 @@ public class ProdutoRepository {
             update produtos
                set name = ?, brand = ?, calories_per_gram = ?, protein_per_gram = ?,
                    carbs_per_gram = ?, fat_per_gram = ?,
-                   serving_grams = ?, serving_label = ?
+                   serving_grams = ?, serving_label = ?,
+                   cover_url = ?, label_url = ?
              where id = ? and user_id = ?
             returning *""";
         try (var c = ds.getConnection();
@@ -115,8 +119,10 @@ public class ProdutoRepository {
             setNullableDouble(s, 6, p.fatPerGram());
             setNullableDouble(s, 7, p.servingGrams());
             s.setString(8, p.servingLabel());
-            s.setObject(9, id);
-            s.setObject(10, userId);
+            s.setString(9, p.coverUrl());
+            s.setString(10, p.labelUrl());
+            s.setObject(11, id);
+            s.setObject(12, userId);
             try (var rs = s.executeQuery()) {
                 if (!rs.next()) throw new NotOwnedException("produto not found or not owned");
                 return map(rs);
@@ -160,6 +166,8 @@ public class ProdutoRepository {
             fat,
             serving,
             rs.getString("serving_label"),
+            rs.getString("cover_url"),
+            rs.getString("label_url"),
             ts == null ? null : OffsetDateTime.ofInstant(ts.toInstant(), ZoneOffset.UTC)
         );
     }
