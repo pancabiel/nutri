@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
@@ -33,12 +34,21 @@ public class ChatService {
     @Inject ComidaRepository comidas;
     @Inject MealRepository meals;
     @Inject CurrentUser user;
+    @Inject MealCopyService copier;
+
+    // "comi o MESMO de ontem", "REPETI o almoço", "IGUAL a ontem"... Matched on the
+    // accent-stripped, lowercased message. Only gates whether the copy hint is sent to
+    // the AI, so a false positive costs a few tokens, never a wrong copy.
+    private static final Pattern COPY_KEYWORDS = Pattern.compile(
+        "\\b(mesm[oa]s?|igua(l|is)|repet\\w*|copi\\w*|de novo|novamente|outra vez)\\b");
 
     public ChatResult log(String message, LocalDate date, String section) {
         var uid     = user.userId();
+        var today   = LocalDate.now(ZONE);
         var prods   = produtos.all(uid);
         var coms    = comidas.all(uid);
-        var parsed  = ai.parseChat(message, prods, coms);
+        var hint    = wantsCopy(message) ? AiService.copyHint(today) : null;
+        var parsed  = ai.parseChat(message, prods, coms, hint);
         var items   = fillComidaMacros(parsed.items(), prods, coms);
 
         // Date: explicit > AI-inferred offset from today > today.
@@ -46,9 +56,9 @@ public class ChatService {
         if (date != null) {
             theDate = date;
         } else if (parsed.dateOffsetDays() != null) {
-            theDate = LocalDate.now(ZONE).plusDays(parsed.dateOffsetDays());
+            theDate = today.plusDays(parsed.dateOffsetDays());
         } else {
-            theDate = LocalDate.now(ZONE);
+            theDate = today;
         }
 
         // Section: explicit > AI-inferred from text > clock-based default.
@@ -61,7 +71,28 @@ public class ChatService {
             sec = defaultSection(LocalTime.now(ZONE));
         }
 
-        return persist(uid, items, theDate, sec);
+        var explicitSection = section != null && !section.isBlank() ? section : null;
+        var copies = new ArrayList<MealCopyService.CopySummary>();
+        for (var cr : parsed.copies()) {
+            // Single-section copy target: explicit section (HTTP body) > AI's to_section > same as source.
+            var to = cr.fromSection() == null ? null
+                : explicitSection != null ? explicitSection
+                : cr.toSection();
+            copies.add(copier.copy(uid, today.plusDays(cr.fromDateOffsetDays()), cr.fromSection(), theDate, to));
+        }
+
+        // Pure copy ("comi o mesmo de ontem"): don't lazily create a day/section for zero items.
+        var base = items.isEmpty()
+            ? new ChatResult(items, List.of(), sec, theDate, new Totals(0, 0), List.of())
+            : persist(uid, items, theDate, sec);
+        int cal = base.totals().calories() + copies.stream().mapToInt(MealCopyService.CopySummary::calories).sum();
+        double prot = base.totals().protein() + copies.stream().mapToDouble(MealCopyService.CopySummary::protein).sum();
+        return new ChatResult(base.parsed(), base.saved(), sec, theDate,
+            new Totals(cal, Math.round(prot * 10.0) / 10.0), copies);
+    }
+
+    static boolean wantsCopy(String message) {
+        return message != null && COPY_KEYWORDS.matcher(MealCopyService.normalize(message)).find();
     }
 
     /** Persist already-parsed items (e.g. from a meal-photo analysis) to today's meal day. */
@@ -93,7 +124,7 @@ public class ChatService {
         }
         var totalCal = items.stream().mapToInt(AiService.ParsedItem::calories).sum();
         var totalProt = items.stream().mapToDouble(AiService.ParsedItem::protein).sum();
-        return new ChatResult(items, saved, sec, theDate, new Totals(totalCal, totalProt));
+        return new ChatResult(items, saved, sec, theDate, new Totals(totalCal, totalProt), List.of());
     }
 
     /**
@@ -150,7 +181,8 @@ public class ChatService {
         List<MealDay.MealItem> saved,
         String section,
         LocalDate date,
-        Totals totals
+        Totals totals,
+        List<MealCopyService.CopySummary> copied
     ) {}
     public record Totals(int calories, double protein) {}
 }

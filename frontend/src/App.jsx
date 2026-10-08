@@ -39,7 +39,7 @@ function Shell({ onOpenSettings, isPro, profile, currentUserId, onProfileChanged
 
   function renderScreen(name) {
     switch (name) {
-      case "chat":       return <ChatScreen onOpenDay={() => { setDate(todayISO()); setScreen("day"); }} />;
+      case "chat":       return <ChatScreen active={screen === "chat"} onOpenDay={() => { setDate(todayISO()); setScreen("day"); }} />;
       case "calendar":   return <CalendarScreen active={screen === "calendar"} onPickDay={(d) => { setDate(d); setScreen("day"); }} />;
       case "day":        return <DayScreen active={screen === "day"} date={date} onBack={() => setScreen("calendar")} onViewMonth={() => setScreen("calendar")} />;
       case "biblioteca": return <BibliotecaScreen />;

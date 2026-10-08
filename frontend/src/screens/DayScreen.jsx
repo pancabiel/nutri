@@ -6,6 +6,7 @@ import ProdutoForm from "../components/ProdutoForm.jsx";
 import NumberInput from "../components/NumberInput.jsx";
 import SaveButton from "../components/SaveButton.jsx";
 import { Skel } from "../components/Skeleton.jsx";
+import CopySuggestion, { findRec } from "../components/CopySuggestion.jsx";
 import { api } from "../lib/api.js";
 import { useStore } from "../state/store.jsx";
 import { comidaTotals, comidaPerGram } from "../lib/macros.js";
@@ -15,6 +16,7 @@ const SECTIONS = ["Café da manhã", "Almoço", "Lanche", "Jantar"];
 export default function DayScreen({ date, onBack, onViewMonth, active = true }) {
   const { showToast, produtos, comidas, refreshProdutos, refreshComidas } = useStore();
   const [day, setDay] = useState(null);
+  const [recs, setRecs] = useState(null);
   const [addingTo, setAddingTo] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
   const [registeringItem, setRegisteringItem] = useState(null);
@@ -27,7 +29,12 @@ export default function DayScreen({ date, onBack, onViewMonth, active = true }) 
   useEffect(() => { if (active) reload(); }, [date, active]);
   useEffect(() => { if (!produtos.length) refreshProdutos(); if (!comidas.length) refreshComidas(); }, []);
 
-  async function reload() { setDay(await api.meals.day(date)); }
+  async function reload() {
+    // Recommendations are a nice-to-have: never let them block or break the day view.
+    const [d, r] = await Promise.all([api.meals.day(date), api.meals.recommendations(date).catch(() => null)]);
+    setDay(d);
+    setRecs(r);
+  }
 
   if (!day) return <DaySkeleton onBack={onBack} />;
 
@@ -123,6 +130,10 @@ export default function DayScreen({ date, onBack, onViewMonth, active = true }) 
                 <button onClick={() => askRemoveSection(section)} className="w-8 h-8 rounded-full hover:bg-red-50 text-red-500 flex items-center justify-center"><Icon name="trash" className="w-4 h-4"/></button>
               </div>
             </div>
+            {section.items.length === 0 && findRec(recs, section.name) && (
+              <CopySuggestion rec={findRec(recs, section.name)} date={date}
+                onCopied={(s) => { showToast(s.items ? `${s.items} ${s.items === 1 ? "item copiado" : "itens copiados"} para ${section.name}` : "Nada para copiar"); reload(); }} />
+            )}
             {section.items.length > 0 && (
               <div className="border-t border-slate-100 divide-y divide-slate-100">
                 {section.items.map(it => (

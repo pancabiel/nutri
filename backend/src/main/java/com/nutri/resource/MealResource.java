@@ -3,6 +3,7 @@ package com.nutri.resource;
 import com.nutri.auth.CurrentUser;
 import com.nutri.model.MealDay;
 import com.nutri.repository.MealRepository;
+import com.nutri.service.MealCopyService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -19,6 +20,7 @@ public class MealResource {
 
     @Inject MealRepository repo;
     @Inject CurrentUser user;
+    @Inject MealCopyService copier;
 
     @GET @Path("recent")
     public List<MealRepository.DaySummary> recent(@QueryParam("days") @DefaultValue("30") int days) {
@@ -29,6 +31,24 @@ public class MealResource {
     public MealDay day(@PathParam("date") String date) {
         return repo.getOrCreate(user.userId(), LocalDate.parse(date));
     }
+
+    /** "Copiar o de sempre": per empty section on {date}, the meal to suggest copying in. */
+    @GET @Path("{date}/recommendations")
+    public MealCopyService.Recommendations recommendations(@PathParam("date") String date) {
+        return copier.recommend(user.userId(), LocalDate.parse(date));
+    }
+
+    /** Copy a section (or, with no fromSection, a whole day) from fromDate into {date}. */
+    @POST @Path("{date}/copy")
+    public MealCopyService.CopySummary copy(@PathParam("date") String date, CopyRequest req) {
+        if (req == null || req.fromDate() == null || req.fromDate().isBlank()) {
+            throw new BadRequestException("fromDate is required");
+        }
+        return copier.copy(user.userId(), LocalDate.parse(req.fromDate()), blankToNull(req.fromSection()),
+            LocalDate.parse(date), blankToNull(req.toSection()));
+    }
+
+    private static String blankToNull(String s) { return s == null || s.isBlank() ? null : s; }
 
     @POST @Path("{date}/sections")
     public MealDay.MealSection addSection(@PathParam("date") String date, NewSection req) {
@@ -76,6 +96,7 @@ public class MealResource {
     }
 
     public record NewSection(String name) {}
+    public record CopyRequest(String fromDate, String fromSection, String toSection) {}
     public record ReorderSections(List<UUID> sectionIds) {}
     public record BatchRequest(String section, List<String> dates, List<MealDay.MealItem> items) {}
     public record BatchResult(int inserted, int days) {}

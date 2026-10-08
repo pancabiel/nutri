@@ -81,6 +81,9 @@ export const api = {
     updateItem: (id, it)      => http(`/meal-days/items/${id}`, { method: "PUT", body: JSON.stringify(it) }),
     deleteItem: (id)          => http(`/meal-days/items/${id}`, { method: "DELETE" }),
     batch: (payload)          => http(`/meal-days/batch`, { method: "POST", body: JSON.stringify(payload) }),
+    // "copiar o de sempre": suggestions per empty section + copy a section/day into `date`
+    recommendations: (date)   => http(`/meal-days/${date}/recommendations`),
+    copy: (date, req)         => http(`/meal-days/${date}/copy`, { method: "POST", body: JSON.stringify(req) }),
   },
   // meal templates (marmitas)
   mealTemplates: {

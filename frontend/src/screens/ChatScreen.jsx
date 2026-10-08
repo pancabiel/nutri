@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import Icon from "../components/Icon.jsx";
-import { api, pickPhoto } from "../lib/api.js";
+import CopySuggestion, { findRec } from "../components/CopySuggestion.jsx";
+import { api, pickPhoto, todayISO } from "../lib/api.js";
 
 const SUGGESTIONS = ["2 ovos e aquele sanduíche", "arroz com feijão e frango", "café com leite e banana"];
 
-export default function ChatScreen({ onOpenDay }) {
+export default function ChatScreen({ onOpenDay, active = true }) {
   const [msgs, setMsgs] = useState([
     { id: rid(), from: "ai", text: "Olá! Me conte o que você comeu, tire uma foto do prato ou escaneie uma tabela nutricional.", kind: "welcome" }
   ]);
@@ -13,6 +14,27 @@ export default function ChatScreen({ onOpenDay }) {
   const scrollRef = useRef();
 
   useEffect(() => { scrollRef.current?.scrollTo({ top: 1e9, behavior: "smooth" }); }, [msgs, typing]);
+
+  // "Copiar o de sempre" for the section matching the clock. Refetched when the screen comes
+  // back into view or the app regains focus, so the suggestion follows the time of day.
+  const [recs, setRecs] = useState(null);
+  const [dismissed, setDismissed] = useState(null);
+  const loadRecs = () => api.meals.recommendations(todayISO()).then(setRecs).catch(() => {});
+  useEffect(() => { if (active) loadRecs(); }, [active]);
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === "visible") loadRecs(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
+  const rec = findRec(recs, recs?.current);
+  const recKey = rec && `${todayISO()}|${rec.section}`;
+
+  const onCopied = (summary) => {
+    setMsgs(m => [...m, { id: rid(), from: "ai", kind: "result", result: {
+      parsed: [], saved: [], copied: [summary], totals: { calories: summary.calories, protein: summary.protein },
+    } }]);
+    loadRecs();
+  };
 
   const send = async (text) => {
     const t = text.trim();
@@ -23,6 +45,7 @@ export default function ChatScreen({ onOpenDay }) {
     try {
       const result = await api.chat(t, null, null);
       setMsgs(m => [...m, { id: rid(), from: "ai", kind: "result", result }]);
+      loadRecs();
     } catch (e) {
       setMsgs(m => [...m, { id: rid(), from: "ai", text: "Não consegui falar com o servidor. Tente novamente." }]);
     } finally { setTyping(false); }
@@ -68,6 +91,12 @@ export default function ChatScreen({ onOpenDay }) {
         {typing && <Typing />}
       </div>
 
+      {rec && !typing && dismissed !== recKey && (
+        <div className="px-4 pb-2 shrink-0">
+          <CopySuggestion variant="card" rec={rec} date={todayISO()} onCopied={onCopied} onDismiss={() => setDismissed(recKey)} />
+        </div>
+      )}
+
       {msgs.length <= 1 && (
         <div className="px-4 pb-2 flex gap-2 overflow-x-auto scroll-hide shrink-0">
           {SUGGESTIONS.map(s => (
@@ -93,7 +122,23 @@ export default function ChatScreen({ onOpenDay }) {
 
 function AiMessage({ msg }) {
   if (msg.kind === "result") {
-    const { parsed, totals, section, saved } = msg.result;
+    const { parsed, totals, section, saved, copied = [] } = msg.result;
+    if (parsed.length === 0) {
+      // Nothing parsed: either a pure "comi o mesmo de ontem" or nothing understood. No empty table.
+      if (copied.length === 0) {
+        return <TextBubble text="Não identifiquei nenhum alimento. Tente algo como “2 ovos e uma banana” ou “comi o mesmo café da manhã de ontem”." />;
+      }
+      return (
+        <div className="flex fade-in">
+          <div className="max-w-[85%] bg-white border border-slate-200 rounded-2xl rounded-bl-md px-4 py-2.5 text-[15px] text-slate-700 shadow-sm space-y-1">
+            {copied.map((c, i) => <CopyLine key={i} c={c} />)}
+            {copied.some(c => c.items > 0) && (
+              <div className="text-[13px] text-slate-500 pt-0.5">Total: <span className="font-bold text-slate-900">{totals.calories} kcal</span> · <span className="font-bold text-slate-900">{totals.protein}g</span></div>
+            )}
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex fade-in">
         <div className="max-w-[90%] w-full bg-white border border-slate-200 rounded-2xl rounded-bl-md shadow-sm overflow-hidden">
@@ -120,6 +165,11 @@ function AiMessage({ msg }) {
               </div>
             ))}
           </div>
+          {copied.length > 0 && (
+            <div className="px-4 pb-2 space-y-1 text-[13px] text-slate-600">
+              {copied.map((c, i) => <CopyLine key={i} c={c} />)}
+            </div>
+          )}
           <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between gap-3">
             <div className="text-[13px]"><span className="text-slate-500">Total: </span><span className="font-bold text-slate-900">{totals.calories} kcal</span><span className="text-slate-400"> · </span><span className="font-bold text-slate-900">{totals.protein}g</span></div>
             {saved && saved.length > 0
@@ -130,11 +180,45 @@ function AiMessage({ msg }) {
       </div>
     );
   }
+  return <TextBubble text={msg.text} />;
+}
+
+function TextBubble({ text }) {
   return (
     <div className="flex fade-in">
-      <div className="max-w-[85%] bg-white border border-slate-200 rounded-2xl rounded-bl-md px-4 py-2.5 text-[15px] text-slate-700 shadow-sm">{msg.text}</div>
+      <div className="max-w-[85%] bg-white border border-slate-200 rounded-2xl rounded-bl-md px-4 py-2.5 text-[15px] text-slate-700 shadow-sm">{text}</div>
     </div>
   );
+}
+
+// One "repeat" block from the backend: {fromDate, fromSection, toDate, toSection, items, calories}.
+// fromSection null = whole day (copied section by section).
+function CopyLine({ c }) {
+  const from = c.fromSection ? `do ${c.fromSection.toLowerCase()} de ${dayLabel(c.fromDate)}` : `de ${dayLabel(c.fromDate)}`;
+  if (c.items === 0) {
+    const day = dayLabel(c.fromDate);
+    const where = c.fromSection ? `no ${c.fromSection.toLowerCase()} de ${day}` : day.includes("/") ? `em ${day}` : day;
+    return <div className="text-slate-500">Não encontrei nada registrado {where}.</div>;
+  }
+  const sameSection = !c.toSection || c.toSection === c.fromSection;
+  const to = sameSection ? dayLabel(c.toDate) : `o ${c.toSection.toLowerCase()} de ${dayLabel(c.toDate)}`;
+  return (
+    <div className="flex items-start gap-1.5">
+      <Icon name="check" className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+      <span>Copiei {c.items} {c.items === 1 ? "item" : "itens"} {from} para {to} <span className="text-slate-400">({c.calories} kcal)</span></span>
+    </div>
+  );
+}
+
+// "2026-10-06" → "ontem" / "hoje" / "anteontem" / "03/10".
+function dayLabel(iso) {
+  const d = new Date(iso + "T00:00:00");
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const diff = Math.round((d - today) / 86400000);
+  if (diff === 0) return "hoje";
+  if (diff === -1) return "ontem";
+  if (diff === -2) return "anteontem";
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 }
 
 function Typing() {

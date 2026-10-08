@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
 // unless registered, so treeToValue throws "no Creator ... native image" and the parse
 // silently falls back to an empty list (e.g. "comida por texto" found no ingredients).
 @RegisterForReflection(targets = {
-    AiService.ParsedItem.class, AiService.ParseResult.class,
+    AiService.ParsedItem.class, AiService.ParseResult.class, AiService.CopyRequest.class,
     AiService.MarmitaItem.class, AiService.MarmitaParse.class,
     AiService.ComidaParse.class, AiService.NutritionLabel.class
 })
@@ -82,6 +82,17 @@ public class AiService {
 
     /** Parse a free-text meal log into structured items, matching against memory. */
     public ParseResult parseChat(String userMessage, List<Produto> produtos, List<Comida> comidas) {
+        return parseChat(userMessage, produtos, comidas, null);
+    }
+
+    /**
+     * Same as {@link #parseChat(String, List, List)}, optionally with a "copy" hint block
+     * (see {@link #copyHint}) appended after the cached memory block. The hint is only sent
+     * when the message looks like "comi o mesmo de ontem", so ordinary logs don't pay for it
+     * and the system prompt stays byte-identical (keeps the prompt cache warm).
+     */
+    public ParseResult parseChat(String userMessage, List<Produto> produtos, List<Comida> comidas,
+                                 String copyHint) {
         var sys = """
             You are a Brazilian Portuguese food-tracking assistant.
             Convert a user's natural-language meal description into structured JSON.
@@ -135,14 +146,16 @@ public class AiService {
         var memoryBlock = buildMemoryBlock(produtos, comidas);
         var userBlock   = "Mensagem do usuário: " + userMessage;
 
-        var content = List.<Map<String, Object>>of(
-            Map.of(
-                "type", "text",
-                "text", memoryBlock,
-                "cache_control", Map.of("type", "ephemeral")
-            ),
-            Map.of("type", "text", "text", userBlock)
-        );
+        var content = new ArrayList<Map<String, Object>>();
+        content.add(Map.of(
+            "type", "text",
+            "text", memoryBlock,
+            "cache_control", Map.of("type", "ephemeral")
+        ));
+        if (copyHint != null && !copyHint.isBlank()) {
+            content.add(Map.of("type", "text", "text", copyHint));
+        }
+        content.add(Map.of("type", "text", "text", userBlock));
 
         var text = call(KIND_CHAT, chatModel, sys, content);
         return parseChatResult(text);
@@ -455,6 +468,41 @@ public class AiService {
     }
 
     /**
+     * Extra instructions for "repeat a previous meal" messages. Carries only today's date
+     * (so "segunda", "semana passada" resolve to an offset), never the meal history itself;
+     * the backend copies the items deterministically from the DB.
+     */
+    private static final String[] WEEKDAYS_PT = {
+        "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"
+    };
+
+    public static String copyHint(LocalDate today) {
+        // Hardcoded: native images ship only the default locale, so getDisplayName(pt-BR) may fall back to English.
+        var weekday = WEEKDAYS_PT[today.getDayOfWeek().getValue() - 1];
+        return """
+            Hoje é %s, %s.
+            A mensagem pode pedir para REPETIR refeições já registradas em outro dia/refeição
+            (ex: "comi as mesmas coisas de ontem", "mesmo café da manhã de ontem",
+            "jantei o mesmo que almocei", "repeti o almoço de segunda").
+            Nesse caso NÃO liste esses alimentos em "items" (você não sabe quais são). Adicione
+            ao objeto JSON de saída um campo extra:
+              "copy": [ { "from_date_offset_days": <inteiro, dia de ORIGEM relativo a hoje>,
+                          "from_section": "<refeição de origem, ou null = dia inteiro>",
+                          "to_section": "<refeição de destino, ou null = mesma da origem>" } ]
+            Regras:
+              - "date_offset_days" e "section" de nível superior descrevem ONDE registrar
+                (o destino), não a origem. "comi o mesmo de ontem" -> date_offset_days null, copy
+                from_date_offset_days -1.
+              - "comi as mesmas coisas de ontem" -> from_section null (copia o dia inteiro).
+              - "jantei o mesmo que almocei" -> from_date_offset_days 0, from_section "Almoço",
+                to_section "Jantar".
+              - Alimentos novos citados junto ("o mesmo café de ontem e mais uma banana") vão em
+                "items" normalmente.
+              - Se a mensagem não pede para repetir nada, "copy": [].
+            """.formatted(weekday, today);
+    }
+
+    /**
      * The cacheable "memory" block re-sent on every chat/marmita parse: the user's
      * produtos (with per-100g macros + optional serving hint) and comidas (id + name).
      */
@@ -563,7 +611,7 @@ public class AiService {
             if (node.isArray()) {
                 var items = new ArrayList<ParsedItem>(node.size());
                 for (var n : node) items.add(clamp(M.treeToValue(n, ParsedItem.class)));
-                return new ParseResult(null, null, items);
+                return new ParseResult(null, null, items, List.of());
             }
             String section = node.hasNonNull("section") ? node.get("section").asText() : null;
             Integer offset = node.hasNonNull("date_offset_days") ? node.get("date_offset_days").asInt() : null;
@@ -572,10 +620,10 @@ public class AiService {
             if (arr != null && arr.isArray()) {
                 for (var n : arr) items.add(clamp(M.treeToValue(n, ParsedItem.class)));
             }
-            return new ParseResult(section, offset, items);
+            return new ParseResult(section, offset, items, parseCopies(node.get("copy")));
         } catch (Exception e) {
             LOG.warn("AI returned non-JSON: " + text, e);
-            return new ParseResult(null, null, List.of());
+            return new ParseResult(null, null, List.of(), List.of());
         }
     }
 
@@ -650,6 +698,30 @@ public class AiService {
         return null;
     }
 
+    // Copying is bounded: at most a few blocks, and only from the past ~3 months.
+    private static final int MAX_COPIES = 4;
+    private static final int MIN_COPY_OFFSET = -90;
+
+    /** Read the optional {@code copy} array by hand (no treeToValue → nothing to register). */
+    private static List<CopyRequest> parseCopies(JsonNode arr) {
+        if (arr == null || !arr.isArray()) return List.of();
+        var out = new ArrayList<CopyRequest>();
+        for (var n : arr) {
+            if (out.size() >= MAX_COPIES) break;
+            if (!n.hasNonNull("from_date_offset_days")) continue;
+            int off = n.get("from_date_offset_days").asInt();
+            if (off > 0 || off < MIN_COPY_OFFSET) continue;
+            out.add(new CopyRequest(off, textOrNull(n, "from_section"), textOrNull(n, "to_section")));
+        }
+        return out;
+    }
+
+    private static String textOrNull(JsonNode n, String field) {
+        if (!n.hasNonNull(field)) return null;
+        var v = n.get(field).asText().trim();
+        return v.isEmpty() || "null".equalsIgnoreCase(v) ? null : v;
+    }
+
     private static double round(double v) {
         return Math.round(v * 100.0) / 100.0;
     }
@@ -669,7 +741,15 @@ public class AiService {
     public record ParseResult(
         String section,
         Integer dateOffsetDays,
-        List<ParsedItem> items
+        List<ParsedItem> items,
+        List<CopyRequest> copies
+    ) {}
+
+    /** "Repeat what I ate": source day offset + optional source/target section (null = whole day / same). */
+    public record CopyRequest(
+        int fromDateOffsetDays,
+        String fromSection,
+        String toSection
     ) {}
 
     public record MarmitaItem(

@@ -23,6 +23,55 @@ public class MealRepository {
         return load(userId, dayId, date);
     }
 
+    /** Loads the meal day for a given user + date without creating it. */
+    public Optional<MealDay> find(UUID userId, LocalDate date) {
+        try (var c = ds.getConnection();
+             var s = c.prepareStatement("select id from meal_days where user_id = ? and date = ?")) {
+            s.setObject(1, userId);
+            s.setDate(2, java.sql.Date.valueOf(date));
+            try (var rs = s.executeQuery()) {
+                if (!rs.next()) return Optional.empty();
+                return Optional.of(load(userId, (UUID) rs.getObject("id"), date));
+            }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+    /**
+     * Every section with at least one item logged in {@code [from, to]}, oldest first, items in
+     * insertion order. Feeds the "copiar o de sempre" recommendation; never creates rows.
+     */
+    public List<DatedSection> loggedSectionsBetween(UUID userId, LocalDate from, LocalDate to) {
+        var sql = """
+            select d.date, s.id as section_id, s.name as section_name, s.order_index,
+                   i.id as item_id, i.produto_id, i.comida_id, i.name as item_name,
+                   i.quantity, i.calories, i.protein, i.unit, i.carbs, i.fat
+              from meal_days d
+              join meal_sections s on s.meal_day_id = d.id
+              join meal_items    i on i.meal_section_id = s.id
+             where d.user_id = ? and d.date between ? and ?
+             order by d.date asc, s.order_index asc, i.created_at asc""";
+        var bySection = new LinkedHashMap<UUID, DatedSection>();
+        try (var c = ds.getConnection();
+             var s = c.prepareStatement(sql)) {
+            s.setObject(1, userId);
+            s.setDate(2, java.sql.Date.valueOf(from));
+            s.setDate(3, java.sql.Date.valueOf(to));
+            try (var rs = s.executeQuery()) {
+                while (rs.next()) {
+                    var sid = (UUID) rs.getObject("section_id");
+                    var entry = bySection.get(sid);
+                    if (entry == null) {
+                        entry = new DatedSection(rs.getDate("date").toLocalDate(), new MealDay.MealSection(
+                            sid, rs.getString("section_name"), rs.getInt("order_index"), new ArrayList<>()));
+                        bySection.put(sid, entry);
+                    }
+                    entry.section().items().add(mapItem(rs));
+                }
+            }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+        return new ArrayList<>(bySection.values());
+    }
+
     public List<DaySummary> recent(UUID userId, int days) {
         var sql = """
             select d.id, d.date,
@@ -458,4 +507,5 @@ public class MealRepository {
     }
 
     public record DaySummary(UUID id, LocalDate date, int calories, int items) {}
+    public record DatedSection(LocalDate date, MealDay.MealSection section) {}
 }
