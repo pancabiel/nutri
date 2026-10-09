@@ -59,7 +59,7 @@ export default function ProdutosScreen() {
       <div className="flex-1 overflow-y-auto p-3 space-y-2 scroll-hide">
         {list.map(p => (
           <div key={p.id} className="bg-white rounded-2xl border border-slate-200 p-3 flex items-center gap-3">
-            <ProdutoThumb key={p.coverUrl || "none"} url={p.coverUrl}/>
+            <ProdutoThumb key={p.coverUrl || "none"} url={p.coverUrl} zoomable/>
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-slate-800 truncate">{p.name}</div>
               <div className="text-[11px] text-slate-500">{p.brand ? `${p.brand} · ` : ""}{Math.round(p.caloriesPerGram * 100)} kcal · {(p.proteinPerGram * 100).toFixed(1)}g prot / 100g</div>

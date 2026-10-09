@@ -5,6 +5,8 @@ import ConfirmDialog from "../components/ConfirmDialog.jsx";
 import ProdutoForm from "../components/ProdutoForm.jsx";
 import NumberInput from "../components/NumberInput.jsx";
 import SaveButton from "../components/SaveButton.jsx";
+import ProdutoThumb from "../components/ProdutoThumb.jsx";
+import ProdutoOption from "../components/ProdutoOption.jsx";
 import { Skel } from "../components/Skeleton.jsx";
 import CopySuggestion, { findRec } from "../components/CopySuggestion.jsx";
 import { api } from "../lib/api.js";
@@ -139,7 +141,9 @@ export default function DayScreen({ date, onBack, onViewMonth, active = true }) 
                 {section.items.map(it => (
                   <div key={it.id} className="px-2 py-1 flex items-center gap-1">
                     <button onClick={() => setEditingItem(it)} className="flex-1 min-w-0 flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-slate-50 text-left">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0 ${it.comidaId ? "bg-amber-100" : "bg-emerald-100"}`}>{it.comidaId ? "🍽️" : "🥚"}</div>
+                      {it.comidaId
+                        ? <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0 bg-amber-100">🍽️</div>
+                        : <ProdutoThumb key={produtos.find(p => p.id === it.produtoId)?.coverUrl || "none"} url={produtos.find(p => p.id === it.produtoId)?.coverUrl} size="sm"/>}
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-slate-800 text-[14px] truncate">{it.name}</div>
                         <div className="text-[11px] text-slate-500">{it.quantity}{unitLabel(it)} · {it.calories} kcal · {it.protein}g prot</div>
@@ -390,7 +394,9 @@ function AddItemSheet({ section, existing, produtos, comidas, onClose, onAdded, 
           </div>
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar..." className="w-full mb-3 bg-slate-100 rounded-xl px-4 py-2.5 outline-none"/>
           <div className="max-h-64 overflow-y-auto scroll-hide space-y-1 mb-3">
-            {list.map(x => (
+            {list.map(x => tab === "produtos" ? (
+              <ProdutoOption key={x.id} p={x} selected={picked?.id === x.id} onClick={() => pick(x)}/>
+            ) : (
               <button key={x.id} onClick={() => pick(x)} className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center justify-between ${picked?.id === x.id ? "bg-emerald-50 border border-emerald-300" : "hover:bg-slate-50 border border-transparent"}`}>
                 <div className="font-semibold text-slate-800 text-sm">{x.name}{x.brand ? <span className="text-slate-400 font-normal"> ({x.brand})</span> : null}</div>
                 {picked?.id === x.id && <Icon name="check" className="w-5 h-5 text-emerald-600"/>}
