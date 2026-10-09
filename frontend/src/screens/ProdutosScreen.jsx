@@ -2,6 +2,7 @@ import { useState } from "react";
 import Icon from "../components/Icon.jsx";
 import ConfirmDialog from "../components/ConfirmDialog.jsx";
 import ProdutoForm from "../components/ProdutoForm.jsx";
+import ProdutoThumb from "../components/ProdutoThumb.jsx";
 import ScanProdutoSheet from "../components/ScanProdutoSheet.jsx";
 import { api } from "../lib/api.js";
 import { removeImages } from "../lib/storage.js";
@@ -83,13 +84,4 @@ export default function ProdutosScreen() {
       />
     </div>
   );
-}
-
-/** Capa do produto (frente da embalagem) or the 🥚 fallback when missing / broken. */
-function ProdutoThumb({ url }) {
-  const [broken, setBroken] = useState(false);
-  if (!url || broken) {
-    return <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-lg shrink-0">🥚</div>;
-  }
-  return <img src={url} alt="" loading="lazy" onError={() => setBroken(true)} className="w-10 h-10 rounded-xl object-cover bg-slate-100 shrink-0"/>;
 }

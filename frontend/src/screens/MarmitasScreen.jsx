@@ -4,6 +4,10 @@ import Sheet from "../components/Sheet.jsx";
 import ConfirmDialog from "../components/ConfirmDialog.jsx";
 import NumberInput from "../components/NumberInput.jsx";
 import SaveButton from "../components/SaveButton.jsx";
+import ProdutoThumb from "../components/ProdutoThumb.jsx";
+import NewProdutoActions from "../components/NewProdutoActions.jsx";
+import NewComidaActions from "../components/NewComidaActions.jsx";
+import ProdutoOption from "../components/ProdutoOption.jsx";
 import { api, CapError } from "../lib/api.js";
 import { useStore } from "../state/store.jsx";
 import { snapshotItem, groupPerGram, comingWeekDates } from "../lib/macros.js";
@@ -152,7 +156,7 @@ function MarmitaForm({ template, produtos, comidas, onClose, onSave }) {
   function describe(ti) {
     const ref = ti.groupName ? null : (ti.produtoId ? produtos.find(x => x.id === ti.produtoId) : comidas.find(x => x.id === ti.comidaId));
     const s = snapshotItem(ti, produtos, comidas);
-    return { name: ti.groupName || ref?.name || "—", kcal: s ? s.calories : 0, isGroup: !!ti.groupName };
+    return { name: ti.groupName || ref?.name || "—", brand: ti.produtoId ? ref?.brand : null, coverUrl: ti.produtoId ? ref?.coverUrl : null, kcal: s ? s.calories : 0, isGroup: !!ti.groupName };
   }
 
   function saveGroup(item) {
@@ -181,10 +185,14 @@ function MarmitaForm({ template, produtos, comidas, onClose, onSave }) {
           const d = describe(ti);
           return (
             <div key={i} className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2">
-              {d.isGroup && <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-sm shrink-0">🥣</div>}
+              {d.isGroup
+                ? <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-sm shrink-0">🥣</div>
+                : ti.produtoId
+                  ? <ProdutoThumb key={d.coverUrl || "none"} url={d.coverUrl} size="sm"/>
+                  : <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-sm shrink-0">🍽️</div>}
               <button onClick={() => d.isGroup && setGroupEdit({ index: i, item: ti })} className="flex-1 min-w-0 text-left">
                 <div className="font-semibold text-sm text-slate-800 truncate">{d.name}{d.isGroup && <span className="text-amber-500 font-normal text-[11px]"> · editar</span>}</div>
-                <div className="text-[11px] text-slate-500">{d.kcal} kcal{d.isGroup ? ` · ${ti.group?.length || 0} ingredientes` : ""}</div>
+                <div className="text-[11px] text-slate-500 truncate">{d.brand ? `${d.brand} · ` : ""}{d.kcal} kcal{d.isGroup ? ` · ${ti.group?.length || 0} ingredientes` : ""}</div>
               </button>
               <NumberInput value={ti.quantity} onChange={v => { const n = v ?? 0; setItems(prev => prev.map((x, xi) => xi === i ? { ...x, quantity: n } : x)); }} className="w-20 bg-white rounded-lg px-2 py-1 border border-slate-200 text-sm text-right"/>
               <span className="text-xs text-slate-400 w-4">{ti.unit === "g" ? "g" : "×"}</span>
@@ -248,9 +256,10 @@ function GroupEditor({ item, produtos, onClose, onSave }) {
           if (!p) return null;
           return (
             <div key={i} className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2">
+              <ProdutoThumb key={p.coverUrl || "none"} url={p.coverUrl} size="sm"/>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-sm text-slate-800 truncate">{p.name}</div>
-                <div className="text-[11px] text-slate-500">{Math.round(p.caloriesPerGram * b.grams)} kcal</div>
+                <div className="text-[11px] text-slate-500 truncate">{p.brand ? `${p.brand} · ` : ""}{Math.round(p.caloriesPerGram * b.grams)} kcal</div>
               </div>
               <NumberInput value={b.grams} onChange={v => { const n = v ?? 0; setBatch(prev => prev.map((x, xi) => xi === i ? { ...x, grams: n } : x)); }} className="w-20 bg-white rounded-lg px-2 py-1 border border-slate-200 text-sm text-right"/>
               <span className="text-xs text-slate-400">g</span>
@@ -298,14 +307,10 @@ function GroupProdutoPicker({ produtos, onClose, onPick }) {
   return (
     <Sheet onClose={onClose} title="Escolher produto" fullScreen>
       <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar..." className="w-full bg-slate-100 rounded-xl px-4 py-2.5 outline-none mb-3"/>
-      <div className="max-h-60 overflow-y-auto scroll-hide space-y-1 mb-3">
-        {list.map(p => (
-          <button key={p.id} onClick={() => setPicked(p)} className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between ${picked?.id === p.id ? "bg-emerald-50 border border-emerald-300" : "hover:bg-slate-50 border border-transparent"}`}>
-            <div className="font-semibold text-slate-800 text-sm">{p.name}</div>
-            {picked?.id === p.id && <Icon name="check" className="w-4 h-4 text-emerald-600"/>}
-          </button>
-        ))}
-        {list.length === 0 && <div className="text-center text-slate-400 py-6 text-sm">Cadastre o produto na aba Produtos primeiro.</div>}
+      <div className="mb-3"><NewProdutoActions onCreated={(p) => { setQ(""); setPicked(p); }}/></div>
+      <div className="max-h-[45vh] overflow-y-auto scroll-hide space-y-1 mb-3">
+        {list.map(p => <ProdutoOption key={p.id} p={p} selected={picked?.id === p.id} onClick={() => setPicked(p)}/>)}
+        {list.length === 0 && <div className="text-center text-slate-400 py-6 text-sm">Nenhum produto. Cadastre acima.</div>}
       </div>
       {picked && (
         <div className="flex items-center gap-2 mb-3">
@@ -351,13 +356,20 @@ function ItemPicker({ produtos, comidas, onClose, onPick }) {
         ))}
       </div>
       <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar..." className="w-full bg-slate-100 rounded-xl px-4 py-2.5 outline-none mb-3"/>
-      <div className="max-h-60 overflow-y-auto scroll-hide space-y-1 mb-3">
-        {list.map(x => (
+      <div className="mb-3">
+        {isComida
+          ? <NewComidaActions onCreated={(c) => { setQ(""); choose(c); }}/>
+          : <NewProdutoActions onCreated={(p) => { setQ(""); choose(p); }}/>}
+      </div>
+      <div className="max-h-[45vh] overflow-y-auto scroll-hide space-y-1 mb-3">
+        {!isComida && list.map(x => <ProdutoOption key={x.id} p={x} selected={picked?.id === x.id} onClick={() => choose(x)}/>)}
+        {isComida && list.map(x => (
           <button key={x.id} onClick={() => choose(x)} className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between ${picked?.id === x.id ? "bg-emerald-50 border border-emerald-300" : "hover:bg-slate-50 border border-transparent"}`}>
             <div className="font-semibold text-slate-800 text-sm">{x.name}{isComida && x.yieldGrams > 0 ? <span className="text-amber-500 font-normal"> · rende {Math.round(x.yieldGrams)}g</span> : null}</div>
             {picked?.id === x.id && <Icon name="check" className="w-4 h-4 text-emerald-600"/>}
           </button>
         ))}
+        {list.length === 0 && <div className="text-center text-slate-400 py-6 text-sm">{isComida ? "Nenhuma comida." : "Nenhum produto. Cadastre acima."}</div>}
       </div>
       {picked && (
         <>
