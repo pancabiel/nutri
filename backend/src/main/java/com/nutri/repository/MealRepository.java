@@ -260,18 +260,66 @@ public class MealRepository {
 
     /** Find a section on a given date by name; create if missing. */
     public UUID resolveSection(UUID userId, LocalDate date, String sectionName) {
+        return resolveSectionNamed(userId, date, sectionName).id();
+    }
+
+    /**
+     * Like {@link #resolveSection} but also returns the section's actual name. Matching is
+     * tolerant ({@link #matchSection}): "Lanche" lands in an existing "Lanche da tarde"
+     * instead of creating a duplicate section next to it.
+     */
+    public ResolvedSection resolveSectionNamed(UUID userId, LocalDate date, String sectionName) {
         var dayId = ensureDay(userId, date);
-        try (var c = ds.getConnection()) {
-            try (var s = c.prepareStatement(
-                "select id from meal_sections where meal_day_id = ? and name = ?")) {
-                s.setObject(1, dayId);
-                s.setString(2, sectionName);
-                try (var rs = s.executeQuery()) {
-                    if (rs.next()) return (UUID) rs.getObject("id");
-                }
+        var existing = new LinkedHashMap<String, UUID>();
+        try (var c = ds.getConnection();
+             var s = c.prepareStatement(
+                 "select id, name from meal_sections where meal_day_id = ? order by order_index")) {
+            s.setObject(1, dayId);
+            try (var rs = s.executeQuery()) {
+                while (rs.next()) existing.putIfAbsent(rs.getString("name"), (UUID) rs.getObject("id"));
             }
         } catch (SQLException e) { throw new RuntimeException(e); }
-        return addSection(userId, date, sectionName).id();
+        var match = matchSection(existing.keySet(), sectionName);
+        if (match != null) return new ResolvedSection(existing.get(match), match);
+        return new ResolvedSection(addSection(userId, date, sectionName).id(), sectionName);
+    }
+
+    public record ResolvedSection(UUID id, String name) {}
+
+    /**
+     * Picks which of {@code names} a wanted section refers to: exact match first, then
+     * case/accent-insensitive, then a unique word-prefix match either way ("Lanche" ↔
+     * "Lanche da tarde"). Null when nothing (or more than one prefix candidate) fits.
+     */
+    static String matchSection(Collection<String> names, String wanted) {
+        if (wanted == null || wanted.isBlank()) return null;
+        if (names.contains(wanted)) return wanted;
+        var w = normalizeName(wanted);
+        for (var n : names) if (normalizeName(n).equals(w)) return n;
+        String found = null;
+        for (var n : names) {
+            var nn = normalizeName(n);
+            if (nn.startsWith(w + " ") || w.startsWith(nn + " ")) {
+                if (found != null) return null;
+                found = n;
+            }
+        }
+        return found;
+    }
+
+    private static String normalizeName(String s) {
+        return java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
+            .replaceAll("\\p{M}", "")
+            .toLowerCase(Locale.ROOT)
+            .replaceAll("\\s+", " ")
+            .trim();
+    }
+
+    /** The section names this user's days are seeded with (profile default or the canonical four). */
+    public List<String> defaultSectionNames(UUID userId) {
+        try (var c = ds.getConnection()) {
+            return defaultSectionsFor(c, userId);
+        } catch (SQLException e) { throw new RuntimeException(e); }
     }
 
     /**

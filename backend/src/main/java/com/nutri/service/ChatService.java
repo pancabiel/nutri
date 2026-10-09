@@ -48,7 +48,7 @@ public class ChatService {
         var prods   = produtos.all(uid);
         var coms    = comidas.all(uid);
         var hint    = wantsCopy(message) ? AiService.copyHint(today) : null;
-        var parsed  = ai.parseChat(message, prods, coms, hint);
+        var parsed  = ai.parseChat(message, prods, coms, hint, meals.defaultSectionNames(uid));
         var items   = fillComidaMacros(parsed.items(), prods, coms);
 
         // Date: explicit > AI-inferred offset from today > today.
@@ -87,7 +87,7 @@ public class ChatService {
             : persist(uid, items, theDate, sec);
         int cal = base.totals().calories() + copies.stream().mapToInt(MealCopyService.CopySummary::calories).sum();
         double prot = base.totals().protein() + copies.stream().mapToDouble(MealCopyService.CopySummary::protein).sum();
-        return new ChatResult(base.parsed(), base.saved(), sec, theDate,
+        return new ChatResult(base.parsed(), base.saved(), base.section(), theDate,
             new Totals(cal, Math.round(prot * 10.0) / 10.0), copies);
     }
 
@@ -104,7 +104,9 @@ public class ChatService {
     }
 
     private ChatResult persist(UUID uid, List<AiService.ParsedItem> items, LocalDate theDate, String sec) {
-        var sectionId = meals.resolveSection(uid, theDate, sec);
+        var resolved = meals.resolveSectionNamed(uid, theDate, sec);
+        var sectionId = resolved.id();
+        sec = resolved.name();
         var saved = new ArrayList<MealDay.MealItem>();
         for (var p : items) {
             boolean isProduto = "produto".equalsIgnoreCase(p.type());
