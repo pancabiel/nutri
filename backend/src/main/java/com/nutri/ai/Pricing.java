@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Per-model token pricing (USD per 1M tokens). Update when Anthropic adjusts.
- * Values from Anthropic public pricing as of 2026-05.
+ * Values from Anthropic public pricing as of 2026-10.
  *
  * Cache write = 5-minute ephemeral cache (1.25x input). Cache read = 0.1x input.
  *
@@ -26,9 +26,14 @@ public final class Pricing {
 
     private static final Rates DEFAULT = new Rates(3.00, 0.30, 3.75, 15.00);
 
+    // Haiku 5.5: rate card for prompts <= 100K tokens; longer prompts bill at
+    // $0.50 / $2.50 (we never send prompts that long). Its tokenizer yields ~30%
+    // more tokens than Haiku 4.5 for the same text; usage counts reflect that.
     private static final Map<String, Rates> BY_MODEL = Map.of(
         "claude-haiku-4-5",   new Rates(1.00, 0.10, 1.25,  5.00),
-        "claude-sonnet-4-6",  new Rates(3.00, 0.30, 3.75, 15.00)
+        "claude-haiku-5-5",   new Rates(0.10, 0.01, 0.125, 0.50),
+        "claude-sonnet-4-6",  new Rates(3.00, 0.30, 3.75, 15.00),
+        "claude-sonnet-5-5",  new Rates(2.00, 0.20, 2.50, 10.00)
     );
 
     // Already-warned models, so log noise doesn't grow per-call. ConcurrentHashMap

@@ -11,12 +11,15 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Field;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -54,8 +57,10 @@ class AiServiceCapTest {
         set("killSwitch",  killSwitch);
         set("user",        user);
         set("apiKey",      "sk-test");
-        set("chatModel",   "claude-haiku-4-5");
+        set("chatModel",   "claude-haiku-5-5");
         set("visionModel", "claude-sonnet-4-6");
+        set("chatEffort",   Optional.of("low"));
+        set("visionEffort", Optional.empty());
         set("maxTokens",   256);
     }
 
@@ -152,6 +157,28 @@ class AiServiceCapTest {
         assertEquals(0, usage.recordCalls.get());
     }
 
+    // ---------- effort + refusal ----------
+
+    @Test
+    void chatCall_sendsConfiguredEffort() {
+        svc.parseChat("x", List.of(), List.of());
+        assertEquals(Map.of("effort", "low"), client.lastRequest.output_config());
+    }
+
+    @Test
+    void visionCall_withoutEffort_omitsOutputConfig() {
+        svc.analyzeMealImage("aGVsbG8=", "image/jpeg");
+        assertNull(client.lastRequest.output_config());
+    }
+
+    @Test
+    void refusal_throws_butIsStillMetered() {
+        client.stopReason = "refusal";
+        assertThrows(AiRefusedException.class,
+            () -> svc.parseChat("x", List.of(), List.of()));
+        assertEquals(1, usage.recordCalls.get(), "refused calls are billed, so they must be recorded");
+    }
+
     // ---------- helpers / fakes ----------
 
     private void set(String fieldName, Object value) throws Exception {
@@ -161,13 +188,13 @@ class AiServiceCapTest {
     }
 
     /** Returns the minimal valid response shape parseChatResult expects. */
-    private static AnthropicClient.Response cannedResponse() {
+    private static AnthropicClient.Response cannedResponse(String stopReason) {
         return new AnthropicClient.Response(
             "msg_test",
-            "claude-haiku-4-5",
+            "claude-haiku-5-5",
             List.of(new AnthropicClient.ContentBlock("text",
                 "{\"section\":null,\"date_offset_days\":null,\"items\":[]}")),
-            "end_turn",
+            stopReason,
             new AnthropicClient.Usage(10, 5, 0, 0)
         );
     }
@@ -204,9 +231,12 @@ class AiServiceCapTest {
 
     static final class FakeClient implements AnthropicClient {
         final AtomicInteger calls = new AtomicInteger();
+        volatile String stopReason = "end_turn";
+        volatile Request lastRequest;
         @Override public Response create(String apiKey, String version, String contentType, Request body) {
             calls.incrementAndGet();
-            return cannedResponse();
+            lastRequest = body;
+            return cannedResponse(stopReason);
         }
     }
 }

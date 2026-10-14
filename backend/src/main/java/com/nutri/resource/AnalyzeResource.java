@@ -16,7 +16,7 @@ public class AnalyzeResource {
 
     @POST @Path("analyze-meal-image")
     public ChatService.ChatResult analyzeMeal(ImageRequest req) {
-        var items = ai.analyzeMealImage(req.imageBase64(), defaultMime(req.mediaType()));
+        var items = ai.analyzeMealImage(req.imageBase64(), defaultMime(req.mediaType()), req.note());
         return chat.saveParsed(items, null, null);
     }
 
@@ -28,6 +28,11 @@ public class AnalyzeResource {
 
     private static String defaultMime(String m) { return m == null || m.isBlank() ? "image/jpeg" : m; }
 
-    /** {@code coverBase64} (frente da embalagem) is optional and only read by scan-nutrition-label. */
-    public record ImageRequest(String imageBase64, String mediaType, String coverBase64, String coverMediaType) {}
+    /**
+     * {@code coverBase64} (frente da embalagem) is optional and only read by scan-nutrition-label.
+     * {@code note} is an optional free-text hint ("arroz integral, 150g de frango") only read by
+     * analyze-meal-image.
+     */
+    public record ImageRequest(String imageBase64, String mediaType, String coverBase64, String coverMediaType,
+                               String note) {}
 }

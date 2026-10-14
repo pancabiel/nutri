@@ -147,7 +147,7 @@ export const api = {
   },
   // ai
   chat:        (msg, date, section) => http(`/chat-log`, { method: "POST", body: JSON.stringify({ message: msg, date, section }) }),
-  analyzeMeal: (b64, mime)   => http(`/analyze-meal-image`, { method: "POST", body: JSON.stringify({ imageBase64: b64, mediaType: mime }) }),
+  analyzeMeal: (b64, mime, note) => http(`/analyze-meal-image`, { method: "POST", body: JSON.stringify({ imageBase64: b64, mediaType: mime, note: note || null }) }),
   // cover (frente da embalagem) is optional: same call, AI also reads name + brand from it.
   scanLabel:   (b64, mime, cover = null) => http(`/scan-nutrition-label`, { method: "POST", body: JSON.stringify({
     imageBase64: b64, mediaType: mime,

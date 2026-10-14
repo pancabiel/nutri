@@ -11,6 +11,8 @@ export default function ChatScreen({ onOpenDay, active = true }) {
   ]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
+  // Photo waiting for an optional note ("arroz integral, 150g de frango") before analysis.
+  const [photo, setPhoto] = useState(null);
   const scrollRef = useRef();
 
   useEffect(() => { scrollRef.current?.scrollTo({ top: 1e9, behavior: "smooth" }); }, [msgs, typing]);
@@ -53,12 +55,19 @@ export default function ChatScreen({ onOpenDay, active = true }) {
 
   const onCamera = async () => {
     const picked = await pickPhoto();
-    if (!picked) return;
-    const { b64, mime } = picked;
-    setMsgs(m => [...m, { id: rid(), from: "user", kind: "photo", text: "📷 Foto do prato" }]);
+    if (picked) setPhoto(picked);
+  };
+
+  const sendPhoto = async () => {
+    if (!photo) return;
+    const { b64, mime } = photo;
+    const note = input.trim();
+    setPhoto(null);
+    setInput("");
+    setMsgs(m => [...m, { id: rid(), from: "user", kind: "photo", text: note ? `📷 Foto do prato: ${note}` : "📷 Foto do prato" }]);
     setTyping(true);
     try {
-      const result = await api.analyzeMeal(b64, mime);
+      const result = await api.analyzeMeal(b64, mime, note);
       if (!result.parsed || result.parsed.length === 0) {
         setMsgs(m => [...m, { id: rid(), from: "ai", text: "Não consegui identificar nenhum alimento na foto. Tente uma foto mais nítida ou com melhor iluminação." }]);
         return;
@@ -69,6 +78,8 @@ export default function ChatScreen({ onOpenDay, active = true }) {
       setMsgs(m => [...m, { id: rid(), from: "ai", text: `Erro ao analisar a foto: ${e.message || e}. Verifique se o servidor está rodando.` }]);
     } finally { setTyping(false); }
   };
+
+  const submit = () => (photo ? sendPhoto() : send(input));
 
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-emerald-50 via-white to-white">
@@ -106,12 +117,19 @@ export default function ChatScreen({ onOpenDay, active = true }) {
       )}
 
       <div className="shrink-0 px-3 pt-2 pb-2 bg-white/70 dark:!bg-slate-900/80 backdrop-blur border-t border-slate-200">
+        {photo && (
+          <div className="flex items-center gap-3 pb-2">
+            <img src={`data:${photo.mime};base64,${photo.b64}`} alt="Foto do prato" className="w-14 h-14 rounded-xl object-cover border border-slate-200" />
+            <div className="flex-1 text-[12px] text-slate-500 leading-snug">Quer dar detalhes? Ingredientes, quantidades ou o que não aparece na foto ajudam na precisão (opcional).</div>
+            <button onClick={() => setPhoto(null)} aria-label="Remover foto" className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center shrink-0"><Icon name="close" className="w-4 h-4"/></button>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <button onClick={onCamera} className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center"><Icon name="camera"/></button>
           <div className="flex-1 flex items-center bg-slate-100 dark:!bg-slate-800 rounded-full pl-4 pr-1 h-10">
-            <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send(input)}
-                   placeholder="O que você comeu?" className="flex-1 bg-transparent outline-none text-[15px] placeholder:text-slate-400" />
-            <button onClick={() => send(input)} disabled={!input.trim()} className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center"><Icon name="send" className="w-4 h-4"/></button>
+            <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && submit()}
+                   placeholder={photo ? "Ex: arroz integral, 150g de frango" : "O que você comeu?"} className="flex-1 bg-transparent outline-none text-[15px] placeholder:text-slate-400" />
+            <button onClick={submit} disabled={!photo && !input.trim()} className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center"><Icon name="send" className="w-4 h-4"/></button>
           </div>
         </div>
       </div>

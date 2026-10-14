@@ -1,5 +1,6 @@
 package com.nutri.ai;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
@@ -26,11 +27,18 @@ public interface AnthropicClient {
         Request body
     );
 
+    /**
+     * {@code output_config} carries {@code effort} (e.g. {@code {"effort": "low"}}); null
+     * fields are omitted so models without effort support (Haiku 4.5) still accept the body.
+     * Plain Map (not a nested record) so nothing extra needs native reflection registration.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     record Request(
         String model,
         Integer max_tokens,
         String system,
-        List<Message> messages
+        List<Message> messages,
+        Map<String, Object> output_config
     ) {}
 
     record Message(String role, List<Map<String, Object>> content) {}
