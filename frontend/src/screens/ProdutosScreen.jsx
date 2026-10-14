@@ -15,8 +15,14 @@ export default function ProdutosScreen() {
   const [scanning, setScanning] = useState(false);   // capture sheet open
   const [scanResult, setScanResult] = useState(null);
   const [confirm, setConfirm] = useState(null);
+  const [showArchived, setShowArchived] = useState(false);
 
-  const list = produtos.filter(p => !q || p.name.toLowerCase().includes(q.toLowerCase()));
+  // Arquivados ficam no store (comidas/marmitas/dias antigos ainda resolvem por eles),
+  // mas só aparecem aqui, na seção recolhida "Arquivados".
+  const matches  = (p) => !q || p.name.toLowerCase().includes(q.toLowerCase());
+  const active   = produtos.filter(p => !p.archived);
+  const list     = active.filter(matches);
+  const archived = produtos.filter(p => p.archived && matches(p));
 
   async function save(p) {
     if (p.id) await api.produtos.update(p.id, p); else await api.produtos.create(p);
@@ -24,6 +30,8 @@ export default function ProdutosScreen() {
     setEditing(null);
     refreshProdutos();
   }
+  const detailOf = (p) => p.brand ? `${p.name} · ${p.brand}` : p.name;
+
   async function remove(p) {
     try {
       await api.produtos.remove(p.id);
@@ -31,13 +39,38 @@ export default function ProdutosScreen() {
       showToast("Produto removido");
       refreshProdutos();
     } catch (e) {
-      showToast(e?.message || "Não foi possível remover o produto.", "error");
+      // 409 = referenciado por comida/marmita/dia. Excluir quebraria essas referências,
+      // então oferece arquivar: some das listas e do chat, o resto segue funcionando.
+      if (e?.status === 409) askArchive(p);
+      else showToast(e?.message || "Não foi possível remover o produto.", "error");
+    }
+  }
+  async function setArchived(p, archived) {
+    try {
+      await (archived ? api.produtos.archive(p.id) : api.produtos.unarchive(p.id));
+      showToast(archived ? "Produto arquivado" : "Produto restaurado");
+      refreshProdutos();
+    } catch (e) {
+      showToast(e?.message || "Não foi possível arquivar o produto.", "error");
     }
   }
   function askRemove(p) {
     setConfirm({
-      detail: p.brand ? `${p.name} · ${p.brand}` : p.name,
+      title: "Excluir produto?",
+      message: "Este produto será removido da sua lista.",
+      detail: detailOf(p),
       onConfirm: async () => { setConfirm(null); await remove(p); },
+    });
+  }
+  function askArchive(p) {
+    setConfirm({
+      title: "Produto em uso",
+      message: "Ele está numa comida, marmita ou dia registrado, então não dá pra excluir. Arquivar tira ele da lista, dos seletores e do chat; o que já usa ele continua igual.",
+      detail: detailOf(p),
+      confirmLabel: "Arquivar",
+      tone: "neutral",
+      icon: "archive",
+      onConfirm: async () => { setConfirm(null); await setArchived(p, true); },
     });
   }
 
@@ -47,7 +80,7 @@ export default function ProdutosScreen() {
         <div className="flex items-start justify-between mb-3">
           <div>
             <h1 className="text-[22px] font-bold text-slate-900">Produtos</h1>
-            <p className="text-sm text-slate-500">{produtos.length} itens</p>
+            <p className="text-sm text-slate-500">{active.length} itens</p>
           </div>
           <div className="flex gap-2">
             <button onClick={() => setScanning(true)} className="h-10 px-3 rounded-full bg-slate-900 text-white text-sm font-semibold flex items-center gap-1.5 shadow"><Icon name="camera" className="w-4 h-4"/> Scan</button>
@@ -69,6 +102,29 @@ export default function ProdutosScreen() {
           </div>
         ))}
         {list.length === 0 && <div className="text-center text-slate-400 py-8 text-sm">Nenhum produto.</div>}
+        {archived.length > 0 && (
+          <div className="pt-2">
+            <button onClick={() => setShowArchived(v => !v)} className="w-full flex items-center gap-2 px-1 py-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <Icon name="archive" className="w-4 h-4"/> Arquivados ({archived.length})
+              <span className="ml-auto">{showArchived ? "Ocultar" : "Mostrar"}</span>
+            </button>
+            {showArchived && (
+              <div className="space-y-2">
+                {archived.map(p => (
+                  <div key={p.id} className="bg-white/60 rounded-2xl border border-dashed border-slate-200 p-3 flex items-center gap-3 opacity-70">
+                    <ProdutoThumb key={p.coverUrl || "none"} url={p.coverUrl}/>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-slate-700 truncate">{p.name}</div>
+                      <div className="text-[11px] text-slate-500">{p.brand ? `${p.brand} · ` : ""}{Math.round(p.caloriesPerGram * 100)} kcal / 100g</div>
+                    </div>
+                    <button onClick={() => setArchived(p, false)} className="h-8 px-3 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold">Restaurar</button>
+                    <button onClick={() => askRemove(p)} className="w-8 h-8 rounded-full hover:bg-red-50 text-red-500 flex items-center justify-center"><Icon name="trash" className="w-4 h-4"/></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {editing && <ProdutoForm produto={editing === "new" ? null : editing} onClose={() => setEditing(null)} onSave={save}/>}
@@ -76,9 +132,12 @@ export default function ProdutosScreen() {
       {scanResult && <ProdutoForm produto={null} prefill={scanResult} onClose={() => setScanResult(null)} onSave={async (p) => { await save(p); setScanResult(null); }}/>}
       <ConfirmDialog
         open={!!confirm}
-        title="Excluir produto?"
-        message="Este produto será removido da sua lista."
+        title={confirm?.title}
+        message={confirm?.message}
         detail={confirm?.detail}
+        confirmLabel={confirm?.confirmLabel}
+        tone={confirm?.tone}
+        icon={confirm?.icon}
         onConfirm={confirm?.onConfirm}
         onCancel={() => setConfirm(null)}
       />

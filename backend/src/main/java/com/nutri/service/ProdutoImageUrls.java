@@ -35,7 +35,7 @@ public class ProdutoImageUrls {
         if (eq(cover, p.coverUrl()) && eq(label, p.labelUrl())) return p;
         return new Produto(p.id(), p.name(), p.brand(), p.caloriesPerGram(), p.proteinPerGram(),
             p.carbsPerGram(), p.fatPerGram(), p.servingGrams(), p.servingLabel(),
-            cover, label, p.createdAt());
+            cover, label, p.createdAt(), p.archived());
     }
 
     /** {@code https://<ref>.supabase.co/auth/v1} → {@code https://<ref>.supabase.co/storage/v1/object/public/produtos/}. */

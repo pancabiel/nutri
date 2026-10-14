@@ -70,7 +70,7 @@ public class SaveRecipeService {
             var p = produtoFromNode(viewer, ing);
             items.add(new Comida.ComidaProduto(p.id(), dbl(ing, "grams", 0)));
         }
-        var created = comidas.create(viewer, new Comida(null, name, items, dblOrNull(n, "yieldGrams"), null));
+        var created = comidas.create(viewer, new Comida(null, name, items, dblOrNull(n, "yieldGrams"), null, false));
         return new SaveResult("comida", created.name());
     }
 
@@ -94,7 +94,7 @@ public class SaveRecipeService {
                         cItems.add(new Comida.ComidaProduto(p.id(), dbl(ing, "grams", 0)));
                     }
                     var c = comidas.create(viewer, new Comida(null, str(comidaNode, "name", "Receita"),
-                        cItems, dblOrNull(comidaNode, "yieldGrams"), null));
+                        cItems, dblOrNull(comidaNode, "yieldGrams"), null, false));
                     items.add(new MealTemplate.TemplateItem(null, c.id(), qty, unit));
                 }
                 case "grupo" -> {
@@ -158,7 +158,7 @@ public class SaveRecipeService {
         var existing = produtos.byName(viewer, name);
         if (existing.isPresent()) return existing.get();
         return produtos.create(viewer, new Produto(null, name, brand,
-            calPerGram, protPerGram, carbsPerGram, fatPerGram, servingGrams, servingLabel, null, null, null));
+            calPerGram, protPerGram, carbsPerGram, fatPerGram, servingGrams, servingLabel, null, null, null, false));
     }
 
     private static String str(JsonNode n, String field, String dflt) {

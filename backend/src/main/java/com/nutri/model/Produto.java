@@ -15,5 +15,6 @@ public record Produto(
     String servingLabel,
     String coverUrl,     // capa (frente da embalagem) — URL pública do bucket `produtos`
     String labelUrl,     // foto da tabela nutricional, só referência pessoal
-    OffsetDateTime createdAt
+    OffsetDateTime createdAt,
+    boolean archived     // arquivado: some das listas/pickers/IA, mas segue resolvível p/ comidas, marmitas e diário
 ) {}

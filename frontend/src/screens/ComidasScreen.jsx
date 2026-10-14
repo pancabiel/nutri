@@ -12,8 +12,13 @@ export default function ComidasScreen() {
   const [editing, setEditing] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [parsing, setParsing] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
-  const list = comidas.filter(c => !q || c.name.toLowerCase().includes(q.toLowerCase()));
+  // Arquivadas ficam no store (marmitas/dias antigos ainda resolvem por elas),
+  // mas só aparecem aqui, na seção recolhida "Arquivadas".
+  const matches  = (c) => !q || c.name.toLowerCase().includes(q.toLowerCase());
+  const list     = comidas.filter(c => !c.archived && matches(c));
+  const archived = comidas.filter(c => c.archived && matches(c));
 
   async function save(c) {
     if (c.id) await api.comidas.update(c.id, c); else await api.comidas.create(c);
@@ -21,19 +26,45 @@ export default function ComidasScreen() {
     setEditing(null);
     refreshComidas();
   }
-  async function remove(id) {
+  const detailOf = (c) => `${c.name} · ${c.items.length} ${c.items.length === 1 ? "produto" : "produtos"}`;
+
+  async function remove(c) {
     try {
-      await api.comidas.remove(id);
+      await api.comidas.remove(c.id);
       showToast("Comida removida");
       refreshComidas();
     } catch (e) {
-      showToast(e?.message || "Não foi possível remover a comida.", "error");
+      // 409 = referenciada por marmita/dia. Oferece arquivar em vez de excluir.
+      if (e?.status === 409) askArchive(c);
+      else showToast(e?.message || "Não foi possível remover a comida.", "error");
+    }
+  }
+  async function setArchived(c, archived) {
+    try {
+      await (archived ? api.comidas.archive(c.id) : api.comidas.unarchive(c.id));
+      showToast(archived ? "Comida arquivada" : "Comida restaurada");
+      refreshComidas();
+    } catch (e) {
+      showToast(e?.message || "Não foi possível arquivar a comida.", "error");
     }
   }
   function askRemove(c) {
     setConfirm({
-      detail: `${c.name} · ${c.items.length} ${c.items.length === 1 ? "produto" : "produtos"}`,
-      onConfirm: async () => { setConfirm(null); await remove(c.id); },
+      title: "Excluir comida?",
+      message: "Esta comida será removida da sua lista.",
+      detail: detailOf(c),
+      onConfirm: async () => { setConfirm(null); await remove(c); },
+    });
+  }
+  function askArchive(c) {
+    setConfirm({
+      title: "Comida em uso",
+      message: "Ela está numa marmita ou dia registrado, então não dá pra excluir. Arquivar tira ela da lista, dos seletores e do chat; o que já usa ela continua igual.",
+      detail: detailOf(c),
+      confirmLabel: "Arquivar",
+      tone: "neutral",
+      icon: "archive",
+      onConfirm: async () => { setConfirm(null); await setArchived(c, true); },
     });
   }
 
@@ -95,14 +126,40 @@ export default function ComidasScreen() {
             </div>
           );
         })}
+        {archived.length > 0 && (
+          <div className="pt-2">
+            <button onClick={() => setShowArchived(v => !v)} className="w-full flex items-center gap-2 px-1 py-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <Icon name="archive" className="w-4 h-4"/> Arquivadas ({archived.length})
+              <span className="ml-auto">{showArchived ? "Ocultar" : "Mostrar"}</span>
+            </button>
+            {showArchived && (
+              <div className="space-y-2">
+                {archived.map(c => (
+                  <div key={c.id} className="bg-white/60 rounded-2xl border border-dashed border-slate-200 p-3 flex items-center gap-3 opacity-70">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-lg shrink-0">🍽️</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-slate-700 truncate">{c.name}</div>
+                      <div className="text-[11px] text-slate-500">{c.items.length} produtos · {macros(c).cal} kcal</div>
+                    </div>
+                    <button onClick={() => setArchived(c, false)} className="h-8 px-3 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold">Restaurar</button>
+                    <button onClick={() => askRemove(c)} className="w-8 h-8 rounded-full hover:bg-red-50 text-red-500 flex items-center justify-center"><Icon name="trash" className="w-4 h-4"/></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
       {parsing && <ComidaParseSheet onClose={() => setParsing(false)} onDraft={openDraft}/>}
       {editing && <ComidaForm comida={editing === "new" ? null : editing} produtos={produtos} onClose={() => setEditing(null)} onSave={save}/>}
       <ConfirmDialog
         open={!!confirm}
-        title="Excluir comida?"
-        message="Esta comida será removida da sua lista."
+        title={confirm?.title}
+        message={confirm?.message}
         detail={confirm?.detail}
+        confirmLabel={confirm?.confirmLabel}
+        tone={confirm?.tone}
+        icon={confirm?.icon}
         onConfirm={confirm?.onConfirm}
         onCancel={() => setConfirm(null)}
       />

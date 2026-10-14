@@ -7,6 +7,7 @@ const PATHS = {
   send: <path strokeLinecap="round" strokeLinejoin="round" d="M5 12l14-7-4 14-3-6-7-1z"/>,
   camera: <><path strokeLinecap="round" strokeLinejoin="round" d="M3 8a2 2 0 012-2h2l2-2h6l2 2h2a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 17a4 4 0 100-8 4 4 0 000 8z"/></>,
   plus: <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14"/>,
+  archive: <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M5 7v11a2 2 0 002 2h10a2 2 0 002-2V7M3 4h18v3H3V4zm7 7h4"/>,
   trash: <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-1 12a2 2 0 01-2 2H8a2 2 0 01-2-2L5 7m5 0V4a1 1 0 011-1h2a1 1 0 011 1v3M3 7h18"/>,
   edit: <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.41-9.41a2 2 0 112.83 2.83L11.83 15H9v-2.83l8.59-8.58z"/>,
   close: <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M6 18L18 6"/>,

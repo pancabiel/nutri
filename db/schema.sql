@@ -594,3 +594,12 @@ create policy "own produto image delete" on storage.objects for delete to authen
 drop policy if exists "public produto image read" on storage.objects;
 create policy "public produto image read" on storage.objects for select
   using (bucket_id = 'produtos');
+
+-- ============================================================
+-- ARQUIVAR PRODUTO / COMIDA
+-- ============================================================
+-- Item em uso (comida, marmita, dia registrado) não pode ser excluído por FK. Arquivar
+-- tira ele das listas, dos pickers e da memória da IA, mas a linha continua existindo
+-- pras referências antigas resolverem nome/macros. null = ativo.
+alter table produtos add column if not exists archived_at timestamptz;
+alter table comidas  add column if not exists archived_at timestamptz;

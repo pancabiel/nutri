@@ -9,7 +9,8 @@ public record Comida(
     String name,
     List<ComidaProduto> items,
     Double yieldGrams,
-    OffsetDateTime createdAt
+    OffsetDateTime createdAt,
+    boolean archived     // arquivada: some das listas/pickers/IA, mas segue resolvível p/ marmitas e diário
 ) {
     public record ComidaProduto(UUID produtoId, double quantityGrams) {}
 }

@@ -61,6 +61,8 @@ export const api = {
     create: (p)               => http(`/produtos`, { method: "POST", body: JSON.stringify(p) }),
     update: (id, p)           => http(`/produtos/${id}`, { method: "PUT", body: JSON.stringify(p) }),
     remove: (id)              => http(`/produtos/${id}`, { method: "DELETE" }),
+    archive:   (id)           => http(`/produtos/${id}/archive`, { method: "POST" }),
+    unarchive: (id)           => http(`/produtos/${id}/unarchive`, { method: "POST" }),
   },
   // comidas
   comidas: {
@@ -69,6 +71,8 @@ export const api = {
     create: (c)               => http(`/comidas`, { method: "POST", body: JSON.stringify(c) }),
     update: (id, c)           => http(`/comidas/${id}`, { method: "PUT", body: JSON.stringify(c) }),
     remove: (id)              => http(`/comidas/${id}`, { method: "DELETE" }),
+    archive:   (id)           => http(`/comidas/${id}/archive`, { method: "POST" }),
+    unarchive: (id)           => http(`/comidas/${id}/unarchive`, { method: "POST" }),
   },
   // meal days
   meals: {

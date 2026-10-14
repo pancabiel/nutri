@@ -18,9 +18,20 @@ public class ProdutoRepository {
 
     @Inject AgroalDataSource ds;
 
-    public List<Produto> all(UUID userId) {
+    /** Ativos só — o que vai pra memória da IA e pros matchers. */
+    public List<Produto> all(UUID userId) { return list(userId, false); }
+
+    /**
+     * Ativos + arquivados (flag {@code archived}). Usado pelo GET /produtos: o frontend
+     * precisa dos arquivados pra resolver nome/macros de comidas, marmitas e dias que
+     * ainda os referenciam, e esconde eles das listas e pickers.
+     */
+    public List<Produto> allWithArchived(UUID userId) { return list(userId, true); }
+
+    private List<Produto> list(UUID userId, boolean withArchived) {
         var out = new ArrayList<Produto>();
-        var sql = "select * from produtos where user_id = ? order by name asc";
+        var sql = "select * from produtos where user_id = ?"
+                + (withArchived ? "" : " and archived_at is null") + " order by name asc";
         try (var c = ds.getConnection();
              var s = c.prepareStatement(sql)) {
             s.setObject(1, userId);
@@ -33,7 +44,7 @@ public class ProdutoRepository {
 
     public List<Produto> search(UUID userId, String query, int limit) {
         var out = new ArrayList<Produto>();
-        var sql = "select * from produtos where user_id = ? and lower(name) like ? order by name asc limit ?";
+        var sql = "select * from produtos where user_id = ? and archived_at is null and lower(name) like ? order by name asc limit ?";
         try (var c = ds.getConnection();
              var s = c.prepareStatement(sql)) {
             s.setObject(1, userId);
@@ -50,7 +61,7 @@ public class ProdutoRepository {
     public Optional<Produto> byName(UUID userId, String name) {
         if (name == null) return Optional.empty();
         try (var c = ds.getConnection();
-             var s = c.prepareStatement("select * from produtos where user_id = ? and lower(name) = lower(?) order by created_at asc limit 1")) {
+             var s = c.prepareStatement("select * from produtos where user_id = ? and archived_at is null and lower(name) = lower(?) order by created_at asc limit 1")) {
             s.setObject(1, userId);
             s.setString(2, name);
             try (var rs = s.executeQuery()) {
@@ -141,10 +152,22 @@ public class ProdutoRepository {
             // meal_template_items) — the produto is still referenced. Surface a 409 so the
             // UI can explain it instead of failing silently behind a 500.
             if ("23503".equals(e.getSQLState())) {
-                throw new InUseException("Produto em uso em uma comida, marmita ou dia registrado. Remova-o de lá antes de excluir.");
+                throw new InUseException("Produto em uso em uma comida, marmita ou dia registrado. Arquive-o pra tirá-lo das listas.");
             }
             throw new RuntimeException(e);
         }
+    }
+
+    /** Arquiva (true) ou restaura (false). Arquivado continua existindo pras referências. */
+    public void setArchived(UUID userId, UUID id, boolean archived) {
+        try (var c = ds.getConnection();
+             var s = c.prepareStatement(
+                 "update produtos set archived_at = " + (archived ? "coalesce(archived_at, now())" : "null")
+                 + " where id = ? and user_id = ?")) {
+            s.setObject(1, id);
+            s.setObject(2, userId);
+            if (s.executeUpdate() == 0) throw new NotOwnedException("produto not found or not owned");
+        } catch (SQLException e) { throw new RuntimeException(e); }
     }
 
     private static void setNullableDouble(PreparedStatement s, int i, Double v) throws SQLException {
@@ -168,7 +191,8 @@ public class ProdutoRepository {
             rs.getString("serving_label"),
             rs.getString("cover_url"),
             rs.getString("label_url"),
-            ts == null ? null : OffsetDateTime.ofInstant(ts.toInstant(), ZoneOffset.UTC)
+            ts == null ? null : OffsetDateTime.ofInstant(ts.toInstant(), ZoneOffset.UTC),
+            rs.getTimestamp("archived_at") != null
         );
     }
 }

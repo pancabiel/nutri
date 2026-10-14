@@ -25,7 +25,7 @@ public class ComidaResource {
     public List<Comida> list(@QueryParam("q") String query,
                              @QueryParam("limit") @DefaultValue("100") int limit) {
         var uid = user.userId();
-        return query != null && !query.isBlank() ? repo.search(uid, query, limit) : repo.all(uid);
+        return query != null && !query.isBlank() ? repo.search(uid, query, limit) : repo.allWithArchived(uid);
     }
 
     /**
@@ -52,6 +52,18 @@ public class ComidaResource {
 
     @PUT @Path("{id}")
     public Comida update(@PathParam("id") UUID id, Comida c) { return repo.update(user.userId(), id, c); }
+
+    @POST @Path("{id}/archive")
+    public Response archive(@PathParam("id") UUID id) {
+        repo.setArchived(user.userId(), id, true);
+        return Response.noContent().build();
+    }
+
+    @POST @Path("{id}/unarchive")
+    public Response unarchive(@PathParam("id") UUID id) {
+        repo.setArchived(user.userId(), id, false);
+        return Response.noContent().build();
+    }
 
     @DELETE @Path("{id}")
     public Response delete(@PathParam("id") UUID id) {

@@ -25,7 +25,7 @@ public class ProdutoResource {
     public List<Produto> list(@QueryParam("q") String query,
                               @QueryParam("limit") @DefaultValue("100") int limit) {
         var uid = user.userId();
-        return query != null && !query.isBlank() ? repo.search(uid, query, limit) : repo.all(uid);
+        return query != null && !query.isBlank() ? repo.search(uid, query, limit) : repo.allWithArchived(uid);
     }
 
     @GET @Path("{id}")
@@ -45,6 +45,18 @@ public class ProdutoResource {
     public Produto update(@PathParam("id") UUID id, Produto p) {
         var uid = user.userId();
         return repo.update(uid, id, imageUrls.sanitize(uid, p));
+    }
+
+    @POST @Path("{id}/archive")
+    public Response archive(@PathParam("id") UUID id) {
+        repo.setArchived(user.userId(), id, true);
+        return Response.noContent().build();
+    }
+
+    @POST @Path("{id}/unarchive")
+    public Response unarchive(@PathParam("id") UUID id) {
+        repo.setArchived(user.userId(), id, false);
+        return Response.noContent().build();
     }
 
     @DELETE @Path("{id}")

@@ -7,6 +7,8 @@ export default function ConfirmDialog({
   message,
   detail,
   confirmLabel = "Excluir",
+  tone = "danger",   // "danger" (vermelho, lixeira) | "neutral" (ação reversível, ex: arquivar)
+  icon = "trash",
   cancelLabel = "Cancelar",
   onConfirm,
   onCancel,
@@ -25,8 +27,8 @@ export default function ConfirmDialog({
       <div onClick={onCancel} className="absolute inset-0 bg-slate-900/50 fade-in" />
       <div role="dialog" aria-modal="true" className="relative w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl pop">
         <div className="flex items-start gap-3">
-          <div className="w-11 h-11 rounded-full bg-red-50 text-red-500 flex items-center justify-center shrink-0">
-            <Icon name="trash" className="w-5 h-5" />
+          <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${tone === "danger" ? "bg-red-50 text-red-500" : "bg-slate-100 text-slate-600"}`}>
+            <Icon name={icon} className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-[17px] font-bold text-slate-900 leading-tight">{title}</h2>
@@ -48,7 +50,7 @@ export default function ConfirmDialog({
           </button>
           <button
             onClick={onConfirm}
-            className="flex-1 py-3 rounded-full bg-red-500 hover:bg-red-600 text-white font-semibold shadow-lg shadow-red-500/30"
+            className={`flex-1 py-3 rounded-full text-white font-semibold shadow-lg ${tone === "danger" ? "bg-red-500 hover:bg-red-600 shadow-red-500/30" : "bg-slate-900 hover:bg-slate-800 shadow-slate-900/20"}`}
           >
             {confirmLabel}
           </button>
