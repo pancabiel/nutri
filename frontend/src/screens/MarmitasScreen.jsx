@@ -8,6 +8,7 @@ import ProdutoThumb from "../components/ProdutoThumb.jsx";
 import NewProdutoActions from "../components/NewProdutoActions.jsx";
 import NewComidaActions from "../components/NewComidaActions.jsx";
 import ProdutoOption from "../components/ProdutoOption.jsx";
+import ProdutoQty from "../components/ProdutoQty.jsx";
 import { api, CapError } from "../lib/api.js";
 import { useStore } from "../state/store.jsx";
 import { snapshotItem, groupPerGram, comingWeekDates } from "../lib/macros.js";
@@ -222,7 +223,7 @@ function GroupEditor({ item, produtos, onClose, onSave }) {
   const [name, setName] = useState(item?.groupName ?? "");
   const [batch, setBatch] = useState(item?.group ?? []);                 // [{produtoId, grams}]
   const [yieldGrams, setYieldGrams] = useState(item?.groupYieldGrams ?? null);
-  const [served, setServed] = useState(item?.quantity ?? 80);
+  const [served, setServed] = useState(item?.quantity ?? null);
   const [picker, setPicker] = useState(false);
 
   const sumG = batch.reduce((a, b) => a + (b.grams || 0), 0);
@@ -302,8 +303,8 @@ function GroupEditor({ item, produtos, onClose, onSave }) {
 function GroupProdutoPicker({ produtos, onClose, onPick }) {
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState(null);
-  const [g, setG] = useState(100);
-  const list = produtos.filter(p => !q || p.name.toLowerCase().includes(q.toLowerCase()));
+  const [g, setG] = useState(null);
+  const list = produtos.filter(p => !p.archived && (!q || p.name.toLowerCase().includes(q.toLowerCase())));
   return (
     <Sheet onClose={onClose} title="Escolher produto" fullScreen>
       <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar..." className="w-full bg-slate-100 rounded-xl px-4 py-2.5 outline-none mb-3"/>
@@ -312,12 +313,7 @@ function GroupProdutoPicker({ produtos, onClose, onPick }) {
         {list.map(p => <ProdutoOption key={p.id} p={p} selected={picked?.id === p.id} onClick={() => setPicked(p)}/>)}
         {list.length === 0 && <div className="text-center text-slate-400 py-6 text-sm">Nenhum produto. Cadastre acima.</div>}
       </div>
-      {picked && (
-        <div className="flex items-center gap-2 mb-3">
-          <NumberInput value={g} onChange={v => setG(v ?? 0)} className="flex-1 bg-slate-100 rounded-lg px-3 py-2 outline-none"/>
-          <span className="text-sm text-slate-500">gramas no lote</span>
-        </div>
-      )}
+      {picked && <ProdutoQty key={picked.id} produto={picked} gramsLabel="gramas no lote" onChange={setG}/>}
       <button disabled={!picked || !g} onClick={() => onPick(picked.id, g)} className="w-full bg-emerald-500 disabled:bg-slate-200 text-white font-semibold py-3 rounded-full">Adicionar</button>
     </Sheet>
   );
@@ -328,17 +324,17 @@ function ItemPicker({ produtos, comidas, onClose, onPick }) {
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState(null);          // produto or comida object
   const [unit, setUnit] = useState("g");
-  const [qty, setQty] = useState(130);
+  const [qty, setQty] = useState(null);
 
   const isComida = tab === "comidas";
-  const list = (isComida ? comidas : produtos).filter(x => !q || x.name.toLowerCase().includes(q.toLowerCase()));
+  const list = (isComida ? comidas : produtos).filter(x => !x.archived && (!q || x.name.toLowerCase().includes(q.toLowerCase())));
   const canGram = !isComida || (picked && picked.yieldGrams > 0);
   const effUnit = canGram ? unit : "porcao";
 
   function choose(x) {
     setPicked(x);
-    if (isComida && !(x.yieldGrams > 0)) { setUnit("porcao"); setQty(1); }
-    else { setUnit("g"); setQty(isComida ? 130 : 100); }
+    setUnit(isComida && !(x.yieldGrams > 0) ? "porcao" : "g");
+    setQty(null);
   }
 
   function add() {
@@ -376,14 +372,18 @@ function ItemPicker({ produtos, comidas, onClose, onPick }) {
           {isComida && picked.yieldGrams > 0 && (
             <div className="flex gap-1 bg-slate-100 rounded-full p-1 mb-3">
               {[["porcao", "porções"], ["g", "gramas"]].map(([u, label]) => (
-                <button key={u} onClick={() => { setUnit(u); setQty(u === "g" ? 130 : 1); }} className={`flex-1 py-2 rounded-full text-sm font-semibold ${unit === u ? "bg-white shadow text-slate-900" : "text-slate-500"}`}>{label}</button>
+                <button key={u} onClick={() => { setUnit(u); setQty(null); }} className={`flex-1 py-2 rounded-full text-sm font-semibold ${unit === u ? "bg-white shadow text-slate-900" : "text-slate-500"}`}>{label}</button>
               ))}
             </div>
           )}
-          <div className="flex items-center gap-2 mb-3">
-            <NumberInput value={qty} onChange={v => setQty(v ?? 0)} className="flex-1 bg-slate-100 rounded-lg px-3 py-2 outline-none"/>
-            <span className="text-sm text-slate-500">{effUnit === "g" ? "gramas" : "porções"}</span>
-          </div>
+          {isComida ? (
+            <div className="flex items-center gap-2 mb-3">
+              <NumberInput value={qty} onChange={setQty} placeholder={effUnit === "g" ? "ex: 130" : "ex: 1"} className="flex-1 bg-slate-100 rounded-lg px-3 py-2 outline-none"/>
+              <span className="text-sm text-slate-500">{effUnit === "g" ? "gramas" : "porções"}</span>
+            </div>
+          ) : (
+            <ProdutoQty key={picked.id} produto={picked} onChange={setQty}/>
+          )}
         </>
       )}
       <button disabled={!picked || !qty} onClick={add} className="w-full bg-emerald-500 disabled:bg-slate-200 text-white font-semibold py-3 rounded-full">Adicionar</button>

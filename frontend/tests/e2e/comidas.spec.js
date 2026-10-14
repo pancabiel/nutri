@@ -42,6 +42,7 @@ test.describe("cadastro de comidas", () => {
     await page.getByRole("button", { name: "produto", exact: true }).click();
     await expect(page.getByText("Escolher produto")).toBeVisible();
     await page.getByRole("button", { name: produto.name }).click();
+    await page.getByPlaceholder("ex: 100").fill("100");
     await page.getByRole("button", { name: "Adicionar" }).click();
 
     // The composition + total now reflect the picked produto.
@@ -71,6 +72,7 @@ test.describe("cadastro de comidas", () => {
     // Add a produto → now valid.
     await page.getByRole("button", { name: "produto", exact: true }).click();
     await page.getByRole("button", { name: produto.name }).click();
+    await page.getByPlaceholder("ex: 100").fill("100");
     await page.getByRole("button", { name: "Adicionar" }).click();
     await expect(salvar).toBeEnabled();
   });

@@ -42,6 +42,9 @@ test.describe("cadastro de marmitas", () => {
     await expect(page.getByText("Adicionar item")).toBeVisible();
     await page.getByRole("button", { name: "produtos", exact: true }).click(); // switch tab
     await page.getByRole("button", { name: produto.name }).click();
+    // No pre-filled quantity: Adicionar stays disabled until grams are typed.
+    await expect(page.getByRole("button", { name: "Adicionar" })).toBeDisabled();
+    await page.getByPlaceholder("ex: 100").fill("100");
     await page.getByRole("button", { name: "Adicionar" }).click();
 
     await expect(page.getByText("Total por marmita")).toBeVisible();
@@ -67,9 +70,11 @@ test.describe("cadastro de marmitas", () => {
     await page.getByRole("button", { name: "produto", exact: true }).click();
     await expect(page.getByText("Escolher produto")).toBeVisible();
     await page.getByRole("button", { name: produto.name }).click();
+    await page.getByPlaceholder("ex: 100").fill("100");
     await page.getByRole("button", { name: "Adicionar" }).click();
 
-    // Default "quanto vai" (served) = 80g; yield defaults to the sum → save the group.
+    // "Quanto vai" starts empty; yield defaults to the sum → save the group.
+    await page.getByPlaceholder("ex: 80").fill("80");
     await page.getByRole("button", { name: "Salvar grupo" }).click();
 
     // Back in the marmita editor the group item is listed.

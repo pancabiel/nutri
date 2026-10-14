@@ -6,6 +6,7 @@ import SaveButton from "./SaveButton.jsx";
 import ProdutoThumb from "./ProdutoThumb.jsx";
 import ProdutoOption from "./ProdutoOption.jsx";
 import NewProdutoActions from "./NewProdutoActions.jsx";
+import ProdutoQty from "./ProdutoQty.jsx";
 import { api, CapError } from "../lib/api.js";
 import { comidaTotals } from "../lib/macros.js";
 
@@ -79,8 +80,8 @@ export default function ComidaForm({ comida, produtos, onClose, onSave }) {
 function ProdutoPicker({ produtos, onClose, onPick }) {
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState(null);
-  const [g, setG] = useState(100);
-  const list = produtos.filter(p => !q || p.name.toLowerCase().includes(q.toLowerCase()));
+  const [g, setG] = useState(null);
+  const list = produtos.filter(p => !p.archived && (!q || p.name.toLowerCase().includes(q.toLowerCase())));
   return (
     <Sheet onClose={onClose} title="Escolher produto" fullScreen>
       <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar..." className="w-full bg-slate-100 rounded-xl px-4 py-2.5 outline-none mb-3"/>
@@ -89,12 +90,7 @@ function ProdutoPicker({ produtos, onClose, onPick }) {
         {list.map(p => <ProdutoOption key={p.id} p={p} selected={picked?.id === p.id} onClick={() => setPicked(p)}/>)}
         {list.length === 0 && <div className="text-center text-slate-400 py-6 text-sm">Nenhum produto. Cadastre acima.</div>}
       </div>
-      {picked && (
-        <div className="flex items-center gap-2 mb-3">
-          <NumberInput value={g} onChange={v => setG(v ?? 0)} className="flex-1 bg-slate-100 rounded-lg px-3 py-2 outline-none"/>
-          <span className="text-sm text-slate-500">gramas</span>
-        </div>
-      )}
+      {picked && <ProdutoQty key={picked.id} produto={picked} onChange={setG}/>}
       <button disabled={!picked || !g} onClick={() => onPick(picked.id, g)} className="w-full bg-emerald-500 disabled:bg-slate-200 text-white font-semibold py-3 rounded-full">Adicionar</button>
     </Sheet>
   );

@@ -1,6 +1,38 @@
+import { useEffect, useRef, useState } from "react";
 import Icon from "./Icon.jsx";
 
+// iOS doesn't resize the layout when the keyboard opens: it just overlays it (and
+// pans the visual viewport), so a bottom sheet ends up mostly behind the keyboard.
+// Measure how much of the sheet's container the keyboard covers and return the
+// lift + max height that keep the sheet inside the visible area. null = no keyboard.
+function useKeyboardLift(ref) {
+  const [lift, setLift] = useState(null);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      const el = ref.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const visBottom = vv.offsetTop + vv.height;
+      const overlap = r.bottom - visBottom;
+      if (overlap < 40) { setLift(null); return; }
+      setLift({ bottom: overlap, maxHeight: visBottom - Math.max(r.top, vv.offsetTop) - 8 });
+    };
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, [ref]);
+  return lift;
+}
+
 export default function Sheet({ title, children, onClose, fullScreen = false, hideHandle = false, tall = false }) {
+  const wrapRef = useRef(null);
+  const lift = useKeyboardLift(wrapRef);
   if (fullScreen) {
     // Mobile: edge-to-edge. Desktop (≥md): a centered, width-capped card over a
     // dimmed backdrop. `fixed` so it covers the viewport even when rendered at the
@@ -20,9 +52,9 @@ export default function Sheet({ title, children, onClose, fullScreen = false, hi
     );
   }
   return (
-    <div className="absolute inset-0 z-30 flex items-end justify-center md:items-center">
+    <div ref={wrapRef} style={lift ? { paddingBottom: lift.bottom } : undefined} className="absolute inset-0 z-30 flex items-end justify-center md:items-center">
       <div onClick={onClose} className="absolute inset-0 bg-black/40 fade-in" />
-      <div className={`relative w-full md:max-w-md md:mx-4 bg-white rounded-t-3xl md:rounded-3xl p-5 pb-6 ${tall ? "max-h-[95%] md:max-h-[90%]" : "max-h-[90%] md:max-h-[85%]"} overflow-y-auto scroll-hide pop`}>
+      <div className={`relative w-full md:max-w-md md:mx-4 bg-white rounded-t-3xl md:rounded-3xl p-5 pb-6 ${tall ? "max-h-[95%] md:max-h-[90%]" : "max-h-[90%] md:max-h-[85%]"} overflow-y-auto scroll-hide pop`} style={lift ? { maxHeight: lift.maxHeight } : undefined}>
         {!hideHandle && <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mb-3" />}
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-slate-900">{title}</h2>
