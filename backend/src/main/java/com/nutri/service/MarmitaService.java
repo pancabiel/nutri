@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
  * Turns a free-text marmita description into a draft set of {@link MealTemplate.TemplateItem}s,
  * matching ingredients against the user's produtos/comidas and lazily creating a produto for
  * any ingredient the chat parser couldn't match (the AI estimates its per-100g macros).
+ * Components described as their own batch (ex: "molho bolonhesa: ...") become inline groups.
  *
  * It does NOT persist the template — it returns a {@link Draft} that the frontend pre-fills
  * into the marmita editor so the user can review quantities/name before saving. The produtos,
@@ -49,6 +50,24 @@ public class MarmitaService {
         int created = 0;
         for (var it : parsed.items()) {
             var mid = ProdutoResolver.parseUuid(it.matched_id());
+
+            // Group (batch sub-preparation, ex: molho bolonhesa) → inline group item. Each batch
+            // ingredient resolves to an owned produto; quantity = grams served in this marmita.
+            if ("group".equalsIgnoreCase(it.type())) {
+                var batch = new ArrayList<MealTemplate.GroupProduto>();
+                if (it.ingredients() != null) {
+                    for (var ing : it.ingredients()) {
+                        if (ing.quantity() <= 0) continue;
+                        var ref = resolver.resolve(uid, ing, prodById);
+                        if (ref.created()) created++;
+                        batch.add(new MealTemplate.GroupProduto(ref.id(), ing.quantity()));
+                    }
+                }
+                if (batch.isEmpty()) continue;
+                items.add(new MealTemplate.TemplateItem(null, null, ProdutoResolver.gramsOrDefault(it.quantity()), "g",
+                    ProdutoResolver.safeName(it.name()), it.yield_grams(), batch));
+                continue;
+            }
 
             // Matched comida the user owns → reference it. Grams only if it has a yield;
             // otherwise fall back to porções (matches snapshotItem's client-side rule).

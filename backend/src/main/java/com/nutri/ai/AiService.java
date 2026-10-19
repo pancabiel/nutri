@@ -65,6 +65,7 @@ public class AiService {
     private static final double MAX_FAT      = 400.0;
     private static final double MAX_QUANTITY = 50.0;
     private static final double MAX_GRAMS    = 5000.0;
+    private static final double MAX_BATCH_GRAMS = 20000.0;   // batch ingredient / yield of an inline group
     // Per-100g bounds for AI-estimated produtos created from a marmita description.
     private static final double MAX_CAL_PER_100G  = 1000.0;  // pure oil/fat tops out ~900
     private static final double MAX_PROT_PER_100G = 100.0;
@@ -219,19 +220,45 @@ public class AiService {
                   UNLESS the user clearly states the amount in grams, in which case use "g".
               - calories_per_100g / protein_per_100g: only for "new" items; null otherwise.
 
+            GROUPS (components prepared separately, usually cooked in batch and portioned):
+            when the user describes a component made from its own ingredients, or separates
+            the text into parts (e.g. "molho bolonhesa: 1kg de patinho, 1 lata de tomate
+            pelado, 2 colheres de extrato, rendeu 1500g; macarrão: 500g cru; por marmita
+            150g de molho e 180g de macarrão"), emit ONE item of type "group" per component
+            instead of flattening its ingredients into the marmita. A group has:
+              - name: the component name ("Molho bolonhesa", "Macarrão").
+              - ingredients: the batch ingredients, each { type: "produto" | "new",
+                matched_id, name, quantity, unit: "g", calories_per_100g, protein_per_100g }
+                where quantity = grams used in the WHOLE BATCH (not per marmita). Convert ml
+                to g (~1:1 for water-based liquids) and household units ("1 lata", "2
+                colheres") to grams using typical sizes. Never use "comida" or "group" here.
+              - yield_grams: finished (cooked) weight of the whole batch when the user states
+                it. If not stated but the component is cooked in water (macarrão, arroz,
+                feijão, grãos), estimate it with typical factors (macarrão seco ~2.4x,
+                arroz ~2.8x). Otherwise null (the app then uses the sum of the ingredients).
+              - quantity + unit "g": grams of the FINISHED component in ONE marmita. If the
+                user only says how many marmitas the batch was split into, use
+                (yield_grams, or the sum of ingredients) / that count.
+              - matched_id, calories_per_100g, protein_per_100g: null.
+            A single ingredient put directly in the marmita ("100g de frango grelhado") stays a
+            plain produto/new item. If an existing comida matches the component, use the
+            comida instead of a group.
+
             Estimate grams from common Brazilian portion sizes when the user does not specify.
             Also suggest a short "name" for the marmita based on its main components.
 
             Output ONLY a single JSON object, no prose:
             { "name": "<sugestão curta de nome>",
               "items": [
-                { "type": "produto" | "comida" | "new",
+                { "type": "produto" | "comida" | "new" | "group",
                   "matched_id": "<uuid or null>",
                   "name": "<string>",
                   "quantity": <number>,
                   "unit": "g" | "porcao",
                   "calories_per_100g": <number or null>,
-                  "protein_per_100g": <number or null> }
+                  "protein_per_100g": <number or null>,
+                  "yield_grams": <number or null, only for "group">,
+                  "ingredients": [ <items as above>, only for "group" ] }
               ] }
             """;
 
@@ -609,7 +636,7 @@ public class AiService {
                     var raw = M.treeToValue(n, MarmitaItem.class);
                     items.add(clampMarmita(new MarmitaItem(
                         raw.type(), raw.matched_id(), raw.name(), raw.quantity(), "g",
-                        raw.calories_per_100g(), raw.protein_per_100g())));
+                        raw.calories_per_100g(), raw.protein_per_100g(), null, null)));
                 }
             }
             return new ComidaParse(name, yield, items);
@@ -628,8 +655,29 @@ public class AiService {
             : Math.max(0, Math.min(it.calories_per_100g(), MAX_CAL_PER_100G));
         Double prot = it.protein_per_100g() == null ? null
             : Math.max(0, Math.min(it.protein_per_100g(), MAX_PROT_PER_100G));
+        // Group (batch sub-preparation): clamp its ingredients and yield too. Batch amounts
+        // can exceed a single serving's MAX_GRAMS, so they get the looser batch cap.
+        Double yld = null;
+        List<MarmitaItem> ingredients = null;
+        if ("group".equalsIgnoreCase(it.type())) {
+            yld = it.yield_grams() == null || it.yield_grams() <= 0 ? null
+                : Math.min(it.yield_grams(), MAX_BATCH_GRAMS);
+            ingredients = new ArrayList<>();
+            if (it.ingredients() != null) {
+                for (var ing : it.ingredients()) {
+                    if (ing == null || "group".equalsIgnoreCase(ing.type())) continue;   // no nesting
+                    double g = Math.max(0, Math.min(ing.quantity(), MAX_BATCH_GRAMS));
+                    var c = clampMarmita(new MarmitaItem(ing.type(), ing.matched_id(), ing.name(), 0, "g",
+                        ing.calories_per_100g(), ing.protein_per_100g(), null, null));
+                    ingredients.add(new MarmitaItem(c.type(), c.matched_id(), c.name(), g, "g",
+                        c.calories_per_100g(), c.protein_per_100g(), null, null));
+                }
+            }
+            grams = true;
+            qty = Math.max(0, Math.min(it.quantity(), MAX_GRAMS));
+        }
         return new MarmitaItem(it.type(), it.matched_id(), it.name(), qty,
-            grams ? "g" : "porcao", cal, prot);
+            grams ? "g" : "porcao", cal, prot, yld, ingredients);
     }
 
     private List<ParsedItem> parseItems(String text) {
@@ -805,7 +853,9 @@ public class AiService {
         double quantity,
         String unit,
         Double calories_per_100g,
-        Double protein_per_100g
+        Double protein_per_100g,
+        Double yield_grams,              // only for type "group": finished weight of the batch
+        List<MarmitaItem> ingredients    // only for type "group": batch ingredients, grams in the whole batch
     ) {}
 
     public record MarmitaParse(
