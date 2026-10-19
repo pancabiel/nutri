@@ -84,6 +84,8 @@ export const api = {
     addItem: (sectionId, it)  => http(`/meal-days/sections/${sectionId}/items`, { method: "POST", body: JSON.stringify(it) }),
     updateItem: (id, it)      => http(`/meal-days/items/${id}`, { method: "PUT", body: JSON.stringify(it) }),
     deleteItem: (id)          => http(`/meal-days/items/${id}`, { method: "DELETE" }),
+    // {itemIds, sectionId} or {itemIds, date, section}
+    moveItems: (req)          => http(`/meal-days/items/move`, { method: "POST", body: JSON.stringify(req) }),
     batch: (payload)          => http(`/meal-days/batch`, { method: "POST", body: JSON.stringify(payload) }),
     // "copiar o de sempre": suggestions per empty section + copy a section/day into `date`
     recommendations: (date)   => http(`/meal-days/${date}/recommendations`),

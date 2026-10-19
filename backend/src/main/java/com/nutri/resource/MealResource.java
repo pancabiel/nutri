@@ -77,6 +77,35 @@ public class MealResource {
         return repo.updateItem(user.userId(), id, item);
     }
 
+    /**
+     * Move items to another section: by {@code sectionId}, or by {@code date} + {@code section}
+     * name (tolerant match, created if missing, same as the chat flow). Used to fix a meal the
+     * chat filed under the wrong refeição.
+     */
+    @POST @Path("items/move")
+    public MoveResult moveItems(MoveRequest req) {
+        if (req == null || req.itemIds() == null || req.itemIds().isEmpty()) {
+            throw new BadRequestException("itemIds is required");
+        }
+        UUID target;
+        String name;
+        if (req.sectionId() != null) {
+            var sec = repo.sectionById(user.userId(), req.sectionId())
+                .orElseThrow(() -> new NotFoundException("section not found"));
+            target = sec.id();
+            name = sec.name();
+        } else {
+            if (req.date() == null || req.date().isBlank() || req.section() == null || req.section().isBlank()) {
+                throw new BadRequestException("sectionId or date + section is required");
+            }
+            var resolved = repo.resolveSectionNamed(user.userId(), LocalDate.parse(req.date()), req.section());
+            target = resolved.id();
+            name = resolved.name();
+        }
+        int moved = repo.moveItems(user.userId(), req.itemIds(), target);
+        return new MoveResult(moved, target, name);
+    }
+
     @DELETE @Path("items/{itemId}")
     public Response deleteItem(@PathParam("itemId") UUID id) {
         repo.deleteItem(user.userId(), id);
@@ -100,4 +129,6 @@ public class MealResource {
     public record ReorderSections(List<UUID> sectionIds) {}
     public record BatchRequest(String section, List<String> dates, List<MealDay.MealItem> items) {}
     public record BatchResult(int inserted, int days) {}
+    public record MoveRequest(List<UUID> itemIds, UUID sectionId, String date, String section) {}
+    public record MoveResult(int moved, UUID sectionId, String section) {}
 }

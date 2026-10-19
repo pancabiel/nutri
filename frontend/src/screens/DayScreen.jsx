@@ -10,6 +10,7 @@ import ProdutoOption from "../components/ProdutoOption.jsx";
 import ProdutoQty from "../components/ProdutoQty.jsx";
 import { Skel } from "../components/Skeleton.jsx";
 import CopySuggestion, { findRec } from "../components/CopySuggestion.jsx";
+import MoveItemSheet from "../components/MoveItemSheet.jsx";
 import { api } from "../lib/api.js";
 import { useStore } from "../state/store.jsx";
 import { comidaTotals, comidaPerGram } from "../lib/macros.js";
@@ -22,6 +23,7 @@ export default function DayScreen({ date, onBack, onViewMonth, active = true }) 
   const [recs, setRecs] = useState(null);
   const [addingTo, setAddingTo] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
+  const [movingItem, setMovingItem] = useState(null); // { item, section }
   const [registeringItem, setRegisteringItem] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [newSection, setNewSection] = useState(false);
@@ -150,6 +152,9 @@ export default function DayScreen({ date, onBack, onViewMonth, active = true }) 
                         <div className="text-[11px] text-slate-500">{it.quantity}{unitLabel(it)} · {it.calories} kcal · {it.protein}g prot</div>
                       </div>
                     </button>
+                    {day.sections.length > 1 && (
+                      <button onClick={() => setMovingItem({ item: it, section })} aria-label="Mover item" className="w-8 h-8 flex items-center justify-center text-slate-400 shrink-0"><Icon name="swap" className="w-4 h-4"/></button>
+                    )}
                     <button onClick={() => askRemoveItem(it)} className="w-8 h-8 flex items-center justify-center text-red-500 shrink-0"><Icon name="close" className="w-4 h-4"/></button>
                   </div>
                 ))}
@@ -164,6 +169,19 @@ export default function DayScreen({ date, onBack, onViewMonth, active = true }) 
 
       {addingTo && <AddItemSheet section={addingTo} produtos={produtos} comidas={comidas} onClose={() => setAddingTo(null)} onAdded={() => { setAddingTo(null); showToast(`Adicionado em ${addingTo.name}`); reload(); }} />}
       {editingItem && <AddItemSheet existing={editingItem} produtos={produtos} comidas={comidas} onClose={() => setEditingItem(null)} onAdded={() => { setEditingItem(null); showToast("Item atualizado"); reload(); }} onRegisterProduto={(it) => { setEditingItem(null); setRegisteringItem(it); }} />}
+      {movingItem && (
+        <MoveItemSheet date={date} sections={day.sections} currentId={movingItem.section.id}
+          title={`Mover ${movingItem.item.name}`}
+          onClose={() => setMovingItem(null)}
+          onPick={async (s) => {
+            try {
+              await api.meals.moveItems({ itemIds: [movingItem.item.id], sectionId: s.id });
+              showToast(`Movido para ${s.name}`);
+            } catch { showToast("Não foi possível mover"); }
+            setMovingItem(null);
+            reload();
+          }} />
+      )}
       {registeringItem && (
         <ProdutoForm
           prefill={prefillFromItem(registeringItem)}

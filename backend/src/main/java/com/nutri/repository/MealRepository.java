@@ -241,6 +241,36 @@ public class MealRepository {
         } catch (SQLException e) { throw new RuntimeException(e); }
     }
 
+    /**
+     * Move items into another section (same or another day). The target section must be
+     * owned; items not owned by the user are skipped (no-ops), so a forged id can't pull
+     * another user's item. Returns how many rows moved.
+     */
+    public int moveItems(UUID userId, List<UUID> itemIds, UUID targetSectionId) {
+        if (itemIds == null || itemIds.isEmpty()) return 0;
+        requireSectionOwned(userId, targetSectionId);
+        var sql = """
+            update meal_items set meal_section_id = ?
+             where id = ?
+               and meal_section_id in (
+                 select s.id from meal_sections s
+                   join meal_days d on d.id = s.meal_day_id
+                  where d.user_id = ?
+               )""";
+        try (var c = ds.getConnection();
+             var s = c.prepareStatement(sql)) {
+            for (var id : itemIds) {
+                s.setObject(1, targetSectionId);
+                s.setObject(2, id);
+                s.setObject(3, userId);
+                s.addBatch();
+            }
+            int moved = 0;
+            for (int n : s.executeBatch()) moved += Math.max(n, 0);
+            return moved;
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
     public void deleteItem(UUID userId, UUID itemId) {
         var sql = """
             delete from meal_items

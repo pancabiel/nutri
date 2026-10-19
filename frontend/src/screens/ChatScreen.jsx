@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Icon from "../components/Icon.jsx";
 import CopySuggestion, { findRec } from "../components/CopySuggestion.jsx";
+import MoveItemSheet from "../components/MoveItemSheet.jsx";
 import { api, pickPhoto, todayISO } from "../lib/api.js";
 
 const SUGGESTIONS = ["2 ovos e aquele sanduíche", "arroz com feijão e frango", "café com leite e banana"];
@@ -14,6 +15,8 @@ export default function ChatScreen({ onOpenDay, active = true }) {
   // Photo waiting for an optional note ("arroz integral, 150g de frango") before analysis.
   const [photo, setPhoto] = useState(null);
   const scrollRef = useRef();
+  // Result message whose saved items are being moved to another refeição.
+  const [moving, setMoving] = useState(null);
 
   useEffect(() => { scrollRef.current?.scrollTo({ top: 1e9, behavior: "smooth" }); }, [msgs, typing]);
 
@@ -81,6 +84,18 @@ export default function ChatScreen({ onOpenDay, active = true }) {
 
   const submit = () => (photo ? sendPhoto() : send(input));
 
+  const moveSaved = async (s) => {
+    const { saved, date } = moving.result;
+    try {
+      const r = await api.meals.moveItems({ itemIds: saved.map(it => it.id), sectionId: s.id });
+      setMsgs(ms => ms.map(m => m.id === moving.id ? { ...m, result: { ...m.result, section: r.section } } : m));
+      if (date === todayISO()) loadRecs();
+    } catch {
+      setMsgs(ms => [...ms, { id: rid(), from: "ai", text: "Não consegui mover os itens. Tente pela Agenda." }]);
+    }
+    setMoving(null);
+  };
+
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-emerald-50 via-white to-white">
       <div className="px-5 pt-3 pb-2 flex items-center justify-between shrink-0">
@@ -98,9 +113,15 @@ export default function ChatScreen({ onOpenDay, active = true }) {
           <div key={m.id} className="flex justify-end fade-in">
             <div className={`max-w-[78%] rounded-2xl rounded-br-md px-4 py-2.5 text-[15px] shadow-sm ${m.kind === "photo" ? "bg-slate-900 text-white" : "bg-emerald-500 text-white"}`}>{m.text}</div>
           </div>
-        ) : <AiMessage key={m.id} msg={m} />)}
+        ) : <AiMessage key={m.id} msg={m} onMove={() => setMoving(m)} />)}
         {typing && <Typing />}
       </div>
+
+      {moving && (
+        <MoveItemSheet date={moving.result.date} currentName={moving.result.section}
+          title={moving.result.saved.length === 1 ? "Mover item para" : "Mover itens para"}
+          onClose={() => setMoving(null)} onPick={moveSaved} />
+      )}
 
       {rec && !typing && dismissed !== recKey && (
         <div className="px-4 pb-2 shrink-0">
@@ -138,7 +159,7 @@ export default function ChatScreen({ onOpenDay, active = true }) {
   );
 }
 
-function AiMessage({ msg }) {
+function AiMessage({ msg, onMove }) {
   if (msg.kind === "result") {
     const { parsed, totals, section, saved, copied = [] } = msg.result;
     if (parsed.length === 0) {
@@ -191,7 +212,9 @@ function AiMessage({ msg }) {
           <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between gap-3">
             <div className="text-[13px]"><span className="text-slate-500">Total: </span><span className="font-bold text-slate-900">{totals.calories} kcal</span><span className="text-slate-400"> · </span><span className="font-bold text-slate-900">{totals.protein}g</span></div>
             {saved && saved.length > 0
-              ? <span className="text-emerald-600 font-semibold text-sm inline-flex items-center gap-1"><Icon name="check" className="w-4 h-4"/>Salvo em {section}</span>
+              ? <button onClick={onMove} aria-label="Mover para outra refeição" className="text-emerald-600 font-semibold text-sm inline-flex items-center gap-1 text-right">
+                  <Icon name="check" className="w-4 h-4 shrink-0"/>Salvo em {section}<Icon name="chevronDown" className="w-4 h-4 shrink-0 text-emerald-500"/>
+                </button>
               : <span className="text-slate-400 text-xs">{msg.fromPhoto ? "abra a Agenda para salvar" : ""}</span>}
           </div>
         </div>
