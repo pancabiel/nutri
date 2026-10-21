@@ -65,6 +65,10 @@ public class AiService {
     private static final double MAX_FAT      = 400.0;
     private static final double MAX_QUANTITY = 50.0;
     private static final double MAX_GRAMS    = 5000.0;
+    // Physical density bounds: nothing beats pure fat (~9 kcal/g), and macros can't
+    // weigh more than the food. Caught Haiku logging 30g cream cheese as 297 kcal.
+    private static final double MAX_KCAL_PER_GRAM = 9.0;
+    private static final double MACRO_MASS_SLACK  = 1.05;   // rounding tolerance
     private static final double MAX_BATCH_GRAMS = 20000.0;   // batch ingredient / yield of an inline group
     // Per-100g bounds for AI-estimated produtos created from a marmita description.
     private static final double MAX_CAL_PER_100G  = 1000.0;  // pure oil/fat tops out ~900
@@ -729,7 +733,7 @@ public class AiService {
      * wrong meal is acceptable; storing garbage that breaks UI charts and skews
      * weekly averages is not.
      */
-    private static ParsedItem clamp(ParsedItem p) {
+    static ParsedItem clamp(ParsedItem p) {
         if (p == null) return null;
         int  cal  = Math.max(0, Math.min(p.calories(),         MAX_CALORIES));
         double prot = Math.max(0, Math.min(p.protein(),        MAX_PROTEIN));
@@ -741,6 +745,23 @@ public class AiService {
         }
         Double carbs = p.carbs() == null ? null : Math.max(0, Math.min(p.carbs(), MAX_CARBS));
         Double fat   = p.fat()   == null ? null : Math.max(0, Math.min(p.fat(),   MAX_FAT));
+
+        // Density check: scale everything down proportionally when the item is denser
+        // than physically possible for its weight. Skipped when grams are unknown.
+        if (g > 0) {
+            double macroMass = prot + (carbs == null ? 0 : carbs) + (fat == null ? 0 : fat);
+            double scale = 1.0;
+            if (cal > g * MAX_KCAL_PER_GRAM) scale = Math.min(scale, g * MAX_KCAL_PER_GRAM / cal);
+            if (macroMass > g * MACRO_MASS_SLACK) scale = Math.min(scale, g / macroMass);
+            if (scale < 1.0) {
+                LOG.warnf("implausible AI density: name=%s g=%.1f cal=%d macros=%.1fg -> scale %.2f",
+                    p.name(), g, cal, macroMass, scale);
+                cal  = (int) Math.round(cal * scale);
+                prot = Math.round(prot * scale * 10.0) / 10.0;
+                if (carbs != null) carbs = Math.round(carbs * scale * 10.0) / 10.0;
+                if (fat   != null) fat   = Math.round(fat   * scale * 10.0) / 10.0;
+            }
+        }
         return new ParsedItem(p.type(), p.matched_id(), p.name(), qty, g, cal, prot, carbs, fat);
     }
 
