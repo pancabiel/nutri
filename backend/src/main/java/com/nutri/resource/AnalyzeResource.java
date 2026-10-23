@@ -16,8 +16,7 @@ public class AnalyzeResource {
 
     @POST @Path("analyze-meal-image")
     public ChatService.ChatResult analyzeMeal(ImageRequest req) {
-        var items = ai.analyzeMealImage(req.imageBase64(), defaultMime(req.mediaType()), req.note());
-        return chat.saveParsed(items, null, null);
+        return chat.logPhoto(req.imageBase64(), defaultMime(req.mediaType()), req.note());
     }
 
     @POST @Path("scan-nutrition-label")

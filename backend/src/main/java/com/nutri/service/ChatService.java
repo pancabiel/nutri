@@ -51,25 +51,8 @@ public class ChatService {
         var parsed  = ai.parseChat(message, prods, coms, hint, meals.defaultSectionNames(uid));
         var items   = fillComidaMacros(parsed.items(), prods, coms);
 
-        // Date: explicit > AI-inferred offset from today > today.
-        LocalDate theDate;
-        if (date != null) {
-            theDate = date;
-        } else if (parsed.dateOffsetDays() != null) {
-            theDate = today.plusDays(parsed.dateOffsetDays());
-        } else {
-            theDate = today;
-        }
-
-        // Section: explicit > AI-inferred from text > clock-based default.
-        String sec;
-        if (section != null && !section.isBlank()) {
-            sec = section;
-        } else if (parsed.section() != null && !parsed.section().isBlank()) {
-            sec = parsed.section();
-        } else {
-            sec = defaultSection(LocalTime.now(ZONE));
-        }
+        var theDate = resolveDate(date, parsed, today);
+        var sec     = resolveSection(section, parsed);
 
         var explicitSection = section != null && !section.isBlank() ? section : null;
         var copies = new ArrayList<MealCopyService.CopySummary>();
@@ -95,12 +78,33 @@ public class ChatService {
         return message != null && COPY_KEYWORDS.matcher(MealCopyService.normalize(message)).find();
     }
 
-    /** Persist already-parsed items (e.g. from a meal-photo analysis) to today's meal day. */
-    public ChatResult saveParsed(List<AiService.ParsedItem> items, LocalDate date, String section) {
-        var uid = user.userId();
-        var theDate = date != null ? date : LocalDate.now(ZONE);
-        var sec = (section != null && !section.isBlank()) ? section : defaultSection(LocalTime.now(ZONE));
-        return persist(uid, items, theDate, sec);
+    /**
+     * Analyze a meal photo and persist the items. "Ontem à noite" in the note lands on
+     * yesterday's Jantar, same priority as {@link #log}; no note → today, clock-based section.
+     */
+    public ChatResult logPhoto(String base64Image, String mediaType, String note) {
+        var uid    = user.userId();
+        var parsed = ai.analyzeMealImage(base64Image, mediaType, note, meals.defaultSectionNames(uid));
+        var theDate = resolveDate(null, parsed, LocalDate.now(ZONE));
+        var sec     = resolveSection(null, parsed);
+        if (parsed.items().isEmpty()) {
+            return new ChatResult(List.of(), List.of(), sec, theDate, new Totals(0, 0), List.of());
+        }
+        return persist(uid, parsed.items(), theDate, sec);
+    }
+
+    /** Date: explicit > AI-inferred offset from today > today. */
+    private static LocalDate resolveDate(LocalDate date, AiService.ParseResult parsed, LocalDate today) {
+        if (date != null) return date;
+        if (parsed.dateOffsetDays() != null) return today.plusDays(parsed.dateOffsetDays());
+        return today;
+    }
+
+    /** Section: explicit > AI-inferred from text > clock-based default. */
+    private static String resolveSection(String section, AiService.ParseResult parsed) {
+        if (section != null && !section.isBlank()) return section;
+        if (parsed.section() != null && !parsed.section().isBlank()) return parsed.section();
+        return defaultSection(LocalTime.now(ZONE));
     }
 
     private ChatResult persist(UUID uid, List<AiService.ParsedItem> items, LocalDate theDate, String sec) {

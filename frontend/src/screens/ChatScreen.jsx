@@ -161,7 +161,7 @@ export default function ChatScreen({ onOpenDay, active = true }) {
 
 function AiMessage({ msg, onMove }) {
   if (msg.kind === "result") {
-    const { parsed, totals, section, saved, copied = [] } = msg.result;
+    const { parsed, totals, section, saved, date, copied = [] } = msg.result;
     if (parsed.length === 0) {
       // Nothing parsed: either a pure "comi o mesmo de ontem" or nothing understood. No empty table.
       if (copied.length === 0) {
@@ -213,7 +213,7 @@ function AiMessage({ msg, onMove }) {
             <div className="text-[13px]"><span className="text-slate-500">Total: </span><span className="font-bold text-slate-900">{totals.calories} kcal</span><span className="text-slate-400"> · </span><span className="font-bold text-slate-900">{totals.protein}g</span></div>
             {saved && saved.length > 0
               ? <button onClick={onMove} aria-label="Mover para outra refeição" className="text-emerald-600 font-semibold text-sm inline-flex items-center gap-1 text-right">
-                  <Icon name="check" className="w-4 h-4 shrink-0"/>Salvo em {section}<Icon name="chevronDown" className="w-4 h-4 shrink-0 text-emerald-500"/>
+                  <Icon name="check" className="w-4 h-4 shrink-0"/>Salvo em {section}{date && date !== todayISO() ? ` · ${dayLabel(date)}` : ""}<Icon name="chevronDown" className="w-4 h-4 shrink-0 text-emerald-500"/>
                 </button>
               : <span className="text-slate-400 text-xs">{msg.fromPhoto ? "abra a Agenda para salvar" : ""}</span>}
           </div>

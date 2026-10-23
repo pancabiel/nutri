@@ -179,6 +179,39 @@ class AiServiceCapTest {
         assertEquals(1, usage.recordCalls.get(), "refused calls are billed, so they must be recorded");
     }
 
+    // ---------- meal photo: when it was eaten ----------
+
+    private static final String PHOTO_YESTERDAY_DINNER =
+        "{\"section\":\"Jantar\",\"date_offset_days\":-1,\"items\":[{\"type\":\"produto\","
+        + "\"name\":\"Pão\",\"quantity\":1,\"estimated_grams\":60,\"calories\":170,\"protein\":5}]}";
+
+    @Test
+    void photoWithNote_keepsInferredSectionAndDate() {
+        client.text = PHOTO_YESTERDAY_DINNER;
+        var r = svc.analyzeMealImage("aGVsbG8=", "image/jpeg", "ontem à noite", List.of("Almoço", "Jantar"));
+        assertEquals("Jantar", r.section());
+        assertEquals(-1, r.dateOffsetDays());
+        assertEquals(1, r.items().size());
+    }
+
+    @Test
+    void photoWithoutNote_dropsAnyGuessedSectionAndDate() {
+        client.text = PHOTO_YESTERDAY_DINNER;
+        var r = svc.analyzeMealImage("aGVsbG8=", "image/jpeg");
+        assertNull(r.section());
+        assertNull(r.dateOffsetDays());
+        assertEquals(1, r.items().size());
+    }
+
+    @Test
+    void photo_toleratesLegacyBareArray() {
+        client.text = "[{\"type\":\"produto\",\"name\":\"Arroz\",\"quantity\":1,"
+            + "\"estimated_grams\":100,\"calories\":130,\"protein\":2.5}]";
+        var r = svc.analyzeMealImage("aGVsbG8=", "image/jpeg", "almoço", null);
+        assertEquals(1, r.items().size());
+        assertNull(r.section());
+    }
+
     // ---------- helpers / fakes ----------
 
     private void set(String fieldName, Object value) throws Exception {
@@ -188,12 +221,11 @@ class AiServiceCapTest {
     }
 
     /** Returns the minimal valid response shape parseChatResult expects. */
-    private static AnthropicClient.Response cannedResponse(String stopReason) {
+    private static AnthropicClient.Response cannedResponse(String stopReason, String text) {
         return new AnthropicClient.Response(
             "msg_test",
             "claude-haiku-5-5",
-            List.of(new AnthropicClient.ContentBlock("text",
-                "{\"section\":null,\"date_offset_days\":null,\"items\":[]}")),
+            List.of(new AnthropicClient.ContentBlock("text", text)),
             stopReason,
             new AnthropicClient.Usage(10, 5, 0, 0)
         );
@@ -233,10 +265,11 @@ class AiServiceCapTest {
         final AtomicInteger calls = new AtomicInteger();
         volatile String stopReason = "end_turn";
         volatile Request lastRequest;
+        volatile String text = "{\"section\":null,\"date_offset_days\":null,\"items\":[]}";
         @Override public Response create(String apiKey, String version, String contentType, Request body) {
             calls.incrementAndGet();
             lastRequest = body;
-            return cannedResponse(stopReason);
+            return cannedResponse(stopReason, text);
         }
     }
 }
