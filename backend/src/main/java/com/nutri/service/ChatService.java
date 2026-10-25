@@ -36,6 +36,10 @@ public class ChatService {
     @Inject CurrentUser user;
     @Inject MealCopyService copier;
 
+    // Window for the "uses" count that tells the AI which produto is the user's default
+    // (matches the "last 60 days" wording in AiService's chat prompt).
+    private static final int USAGE_WINDOW_DAYS = 60;
+
     // "comi o MESMO de ontem", "REPETI o almoço", "IGUAL a ontem"... Matched on the
     // accent-stripped, lowercased message. Only gates whether the copy hint is sent to
     // the AI, so a false positive costs a few tokens, never a wrong copy.
@@ -48,7 +52,8 @@ public class ChatService {
         var prods   = produtos.all(uid);
         var coms    = comidas.all(uid);
         var hint    = wantsCopy(message) ? AiService.copyHint(today) : null;
-        var parsed  = ai.parseChat(message, prods, coms, hint, meals.defaultSectionNames(uid));
+        var usage   = meals.usageCountsSince(uid, today.minusDays(USAGE_WINDOW_DAYS));
+        var parsed  = ai.parseChat(message, prods, coms, hint, meals.defaultSectionNames(uid), usage);
         var items   = fillComidaMacros(parsed.items(), prods, coms);
 
         var theDate = resolveDate(date, parsed, today);

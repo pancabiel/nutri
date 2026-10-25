@@ -377,6 +377,48 @@ public class MealRepository {
     }
 
     /**
+     * How many times each produto/comida was logged since {@code since}, keyed by id.
+     * A produto logged inside a comida counts too (the "Pão com Pasta de Amendoim" comida
+     * makes "Pão de forma" the default pão). Feeds the chat parser's "uses" hint so a
+     * generic "pão" / "requeijão" resolves to what the user actually eats.
+     */
+    public Map<UUID, Integer> usageCountsSince(UUID userId, LocalDate since) {
+        var sql = """
+            select id, count(*) n from (
+              select i.produto_id id
+                from meal_days d
+                join meal_sections s on s.meal_day_id = d.id
+                join meal_items   i on i.meal_section_id = s.id
+               where d.user_id = ? and d.date >= ? and i.produto_id is not null
+              union all
+              select i.comida_id
+                from meal_days d
+                join meal_sections s on s.meal_day_id = d.id
+                join meal_items   i on i.meal_section_id = s.id
+               where d.user_id = ? and d.date >= ? and i.comida_id is not null
+              union all
+              select cp.produto_id
+                from meal_days d
+                join meal_sections s on s.meal_day_id = d.id
+                join meal_items   i on i.meal_section_id = s.id
+                join comida_produtos cp on cp.comida_id = i.comida_id
+               where d.user_id = ? and d.date >= ?
+            ) u group by id""";
+        var out = new HashMap<UUID, Integer>();
+        try (var c = ds.getConnection();
+             var s = c.prepareStatement(sql)) {
+            for (int k = 0; k < 3; k++) {
+                s.setObject(k * 2 + 1, userId);
+                s.setDate(k * 2 + 2, java.sql.Date.valueOf(since));
+            }
+            try (var rs = s.executeQuery()) {
+                while (rs.next()) out.put(rs.getObject("id", UUID.class), rs.getInt("n"));
+            }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+        return out;
+    }
+
+    /**
      * A single section (name + items) owned by the user, or empty. Used by the feed
      * to snapshot a logged "prato" the author wants to share.
      */
