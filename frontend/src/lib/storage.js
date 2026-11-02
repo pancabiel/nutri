@@ -46,13 +46,66 @@ export async function uploadImage(bucket, file) {
   if (!user) throw new Error("Sessão expirada. Entre de novo.");
   const blob = await resizeImageToBlob(file);
   const path = `${user.id}/${crypto.randomUUID()}.jpg`;
-  const { error } = await supabase.storage.from(bucket).upload(path, blob, {
+  const publicUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+  const upload = supabase.storage.from(bucket).upload(path, blob, {
     contentType: "image/jpeg",
     upsert: false,
   });
-  if (error) throw error;
-  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-  return data.publicUrl;
+  return settleUpload(upload, publicUrl);
+}
+
+// Supabase Storage sometimes stores the object right away but holds the HTTP response
+// for 10–60 s (seen 2026-11-02; iOS gives up at ~60 s → the photo "failed" while the file
+// was already in the bucket). So if the upload is slow, poll the public URL and treat the
+// object showing up as success. Buckets using uploadImage are all public.
+const SLOW_UPLOAD_MS = 4000;
+const POLL_EVERY_MS = 2000;
+const GIVE_UP_MS = 45000;
+
+function settleUpload(upload, publicUrl) {
+  return new Promise((resolve, reject) => {
+    let done = false;
+    let pollTimer = null;
+    const started = Date.now();
+    const finish = (fn, v) => {
+      if (done) return;
+      done = true;
+      clearTimeout(pollTimer);
+      fn(v);
+    };
+    const poll = async () => {
+      if (done) return;
+      if (await isPublic(publicUrl)) return finish(resolve, publicUrl);
+      if (Date.now() - started > GIVE_UP_MS) {
+        return finish(reject, new Error("tempo esgotado enviando a foto"));
+      }
+      pollTimer = setTimeout(poll, POLL_EVERY_MS);
+    };
+    pollTimer = setTimeout(poll, SLOW_UPLOAD_MS);
+
+    upload.then(
+      async ({ error }) => {
+        if (!error) return finish(resolve, publicUrl);
+        // A network-level failure may still have landed the object; a real rejection (RLS, size) won't.
+        if (await isPublic(publicUrl)) return finish(resolve, publicUrl);
+        finish(reject, error);
+      },
+      async (e) => {
+        if (await isPublic(publicUrl)) return finish(resolve, publicUrl);
+        finish(reject, e);
+      },
+    );
+  });
+}
+
+async function isPublic(url) {
+  try {
+    // Cache-buster: an early 404 must not be served from the CDN on the next poll.
+    const res = await fetch(`${url}?check=${Date.now()}`, { method: "HEAD", cache: "no-store" });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 /** Object path ("{uid}/{uuid}.jpg") of a public URL in {@code bucket}, or null if it isn't one. */

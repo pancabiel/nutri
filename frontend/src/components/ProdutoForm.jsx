@@ -77,8 +77,10 @@ export default function ProdutoForm({ produto, prefill, title, hint, onClose, on
         return previous ?? null;
       }
     };
-    const coverUrl = await resolve(cover, "capa", produto?.coverUrl);
-    const labelUrl = await resolve(labelPhoto, "tabela", produto?.labelUrl);
+    const [coverUrl, labelUrl] = await Promise.all([
+      resolve(cover, "capa", produto?.coverUrl),
+      resolve(labelPhoto, "tabela", produto?.labelUrl),
+    ]);
     try {
       await onSave({ ...form, coverUrl, labelUrl });
     } catch (e) {
