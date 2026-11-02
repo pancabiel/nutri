@@ -29,7 +29,9 @@ async function http(path, opts = {}) {
   });
   if (res.status === 401) {
     // Token expired or invalid — push the user back to the login screen.
-    await supabase.auth.signOut();
+    // scope "local": only this device. The default ("global") revokes the user's
+    // sessions on every device, so one stale tab would log the phone out too.
+    await supabase.auth.signOut({ scope: "local" });
     window.location.reload();
     throw new Error("401 Unauthorized");
   }

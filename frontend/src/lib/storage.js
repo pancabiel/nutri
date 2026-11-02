@@ -37,8 +37,13 @@ export async function resizeImageToBlob(file) {
  * browser (supabase-js + the user's JWT); they never pass through the backend/Lambda.
  */
 export async function uploadImage(bucket, file) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("not signed in");
+  // getSession reads the local session (refreshing only if expired) instead of hitting
+  // /auth/v1/user on every upload: one less network round-trip that can fail mid-save
+  // and, on a session_not_found answer, sign the user out. Storage RLS still pins the
+  // folder to auth.uid(), so a stale local id can't write anywhere else.
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
+  if (!user) throw new Error("Sessão expirada. Entre de novo.");
   const blob = await resizeImageToBlob(file);
   const path = `${user.id}/${crypto.randomUUID()}.jpg`;
   const { error } = await supabase.storage.from(bucket).upload(path, blob, {

@@ -57,31 +57,41 @@ export default function ProdutoForm({ produto, prefill, title, hint, onClose, on
     }
   }
 
-  // Upload new photos → save → drop replaced/removed ones (best-effort). A failed upload
-  // aborts the save so the table photo is never lost silently.
+  // Upload new photos → save → drop replaced/removed ones (best-effort). Photos are
+  // optional, so a failed upload doesn't block the save: the produto is saved without
+  // that photo and the user is told which one didn't go up (and why).
   async function submit() {
     const uploaded = [];
-    const resolve = async (photo) => {
+    const failed = [];
+    // On failure keep the previous photo (edit) or none (new).
+    const resolve = async (photo, name, previous) => {
       if (!photo) return null;
       if (photo.url) return photo.url;
-      const url = await uploadImage(BUCKET, photo.file);
-      uploaded.push(url);
-      return url;
+      try {
+        const url = await uploadImage(BUCKET, photo.file);
+        uploaded.push(url);
+        return url;
+      } catch (e) {
+        console.error(`[ProdutoForm] upload ${name} failed`, e);
+        failed.push({ name, reason: e?.message || String(e) });
+        return previous ?? null;
+      }
     };
-    let coverUrl, labelUrl;
-    try {
-      coverUrl = await resolve(cover);
-      labelUrl = await resolve(labelPhoto);
-    } catch {
-      await removeImages(BUCKET, uploaded);
-      showToast("Não foi possível enviar a foto. Tente de novo.", "error");
-      return;
-    }
+    const coverUrl = await resolve(cover, "capa", produto?.coverUrl);
+    const labelUrl = await resolve(labelPhoto, "tabela", produto?.labelUrl);
     try {
       await onSave({ ...form, coverUrl, labelUrl });
     } catch (e) {
+      console.error("[ProdutoForm] save failed", e);
       await removeImages(BUCKET, uploaded);
-      throw e;
+      if (!(e instanceof CapError)) {
+        showToast(`Não foi possível salvar: ${e?.message || "erro desconhecido"}`, "error");
+      }
+      return;
+    }
+    if (failed.length) {
+      const what = failed.map(f => f.name).join(" e ");
+      showToast(`Produto salvo, mas a foto da ${what} não foi enviada (${failed[0].reason}).`, "error");
     }
     const kept = new Set([coverUrl, labelUrl]);
     removeImages(BUCKET, [produto?.coverUrl, produto?.labelUrl].filter(u => u && !kept.has(u)));
