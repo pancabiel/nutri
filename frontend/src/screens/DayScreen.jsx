@@ -374,7 +374,7 @@ function AddItemSheet({ section, existing, produtos, comidas, onClose, onAdded, 
   const canSave = picked?.kind === "produto" ? prodGrams > 0 : (isUnregistered || !!picked) && qty > 0;
 
   return (
-    <Sheet onClose={onClose} title={isEdit ? "Editar item" : `Adicionar em ${section.name}`}>
+    <Sheet onClose={onClose} title={isEdit ? "Editar item" : `Adicionar em ${section.name}`} fullScreen>
       {isUnregistered && (
         <>
           <div className="mb-3 bg-slate-50 rounded-xl px-3 py-2.5">
