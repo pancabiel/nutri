@@ -151,7 +151,11 @@ public class AiService {
                           "no lanche" / "lanchei" / "à tarde" -> "Lanche";
                           "no jantar" / "jantei" / "à noite" -> "Jantar".
                 If the user's names differ (e.g. "Lanche da manhã", "Lanche da tarde", "Ceia"),
-                pick the closest one: "no lanche da tarde" -> "Lanche da tarde".
+                pick the closest one: "no lanche da tarde" -> "Lanche da tarde". The examples
+                above are only for the default names: never answer a name missing from the list.
+                If the user NAMES a meal that is not in the list and is not a variant of one
+                ("pré treino", "pós treino", "sobremesa"), return the user's name as a short
+                title ("Pré treino"), never another meal like "Lanche". The app creates it.
                 If the user does not signal a meal time, return null (do NOT guess).
               - date_offset_days: integer days from today, or null if unclear.
                 "hoje" -> 0, "ontem" -> -1, "anteontem" -> -2, "amanhã" -> 1.
@@ -394,6 +398,10 @@ public class AiService {
                 observação indicar, ou null se não houver indicação (NÃO adivinhe).
                 Ex. (nomes padrão): "no café" -> "Café da manhã"; "almocei" -> "Almoço";
                 "à tarde" -> "Lanche"; "jantei" / "à noite" -> "Jantar".
+                Se os nomes do usuário forem outros, escolha o mais próximo da lista; nunca um nome
+                fora dela. Se a observação NOMEIA uma refeição que não está na lista nem é variação
+                de uma ("pré treino", "pós treino"), retorne esse nome curto ("Pré treino"), nunca
+                outra refeição como "Lanche".
               - date_offset_days: dias a partir de hoje, ou null se não houver indicação.
                 "hoje" -> 0, "ontem" -> -1, "anteontem" -> -2.
 

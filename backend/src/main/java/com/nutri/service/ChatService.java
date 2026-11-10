@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -53,7 +54,8 @@ public class ChatService {
         var coms    = comidas.all(uid);
         var hint    = wantsCopy(message) ? AiService.copyHint(today) : null;
         var usage   = meals.usageCountsSince(uid, today.minusDays(USAGE_WINDOW_DAYS));
-        var parsed  = ai.parseChat(message, prods, coms, hint, meals.defaultSectionNames(uid), usage);
+        var parsed  = ai.parseChat(message, prods, coms, hint,
+                                   sectionNames(uid, date != null ? date : today), usage);
         var items   = fillComidaMacros(parsed.items(), prods, coms);
 
         var theDate = resolveDate(date, parsed, today);
@@ -89,7 +91,8 @@ public class ChatService {
      */
     public ChatResult logPhoto(String base64Image, String mediaType, String note) {
         var uid    = user.userId();
-        var parsed = ai.analyzeMealImage(base64Image, mediaType, note, meals.defaultSectionNames(uid));
+        var parsed = ai.analyzeMealImage(base64Image, mediaType, note,
+                                         sectionNames(uid, LocalDate.now(ZONE)));
         var theDate = resolveDate(null, parsed, LocalDate.now(ZONE));
         var sec     = resolveSection(null, parsed);
         if (parsed.items().isEmpty()) {
@@ -105,11 +108,32 @@ public class ChatService {
         return today;
     }
 
+    /**
+     * Names the AI may pick a section from: the target day's sections first (so one-off ones
+     * like "Pré treino" count), then the user's defaults not already there.
+     */
+    private List<String> sectionNames(UUID uid, LocalDate day) {
+        var out = new LinkedHashSet<String>();
+        meals.find(uid, day).ifPresent(d -> d.sections().forEach(s -> out.add(s.name())));
+        out.addAll(meals.defaultSectionNames(uid));
+        return new ArrayList<>(out);
+    }
+
     /** Section: explicit > AI-inferred from text > clock-based default. */
     private static String resolveSection(String section, AiService.ParseResult parsed) {
         if (section != null && !section.isBlank()) return section;
         if (parsed.section() != null && !parsed.section().isBlank()) return parsed.section();
-        return defaultSection(LocalTime.now(ZONE));
+        return clockSection(LocalTime.now(ZONE));
+    }
+
+    /**
+     * Clock fallback for the chat/photo log. The "Lanche" bucket is 15–19h, so ask for
+     * "Lanche da tarde": it still lands in a plain "Lanche" (prefix match), and a user with
+     * both "Lanche da manhã" and "Lanche da tarde" no longer gets a duplicate "Lanche".
+     */
+    static String clockSection(LocalTime t) {
+        var s = defaultSection(t);
+        return "Lanche".equals(s) ? "Lanche da tarde" : s;
     }
 
     private ChatResult persist(UUID uid, List<AiService.ParsedItem> items, LocalDate theDate, String sec) {
