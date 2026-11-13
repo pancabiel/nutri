@@ -170,14 +170,23 @@ public class AiService {
                   "name": "<string>",
                   "quantity": <number>,
                   "estimated_grams": <number>,
-                  "calories": <integer>,
-                  "protein": <number>,
-                  "carbs": <number>,
-                  "fat": <number> }
+                  "calories_per_100g": <number>,
+                  "protein_per_100g": <number>,
+                  "carbs_per_100g": <number>,
+                  "fat_per_100g": <number> }
               ] }
-            Estimate carbs (carboidratos) and fat (gordura) in grams for the whole
-            portion, using typical Brazilian nutrition values. They are totals for the
-            item, consistent with "calories" and "protein".
+            Do NOT compute totals: give the portion in grams and the nutrition PER 100 g;
+            the app multiplies. Rules:
+              - "estimated_grams" is the weight of the WHOLE portion the user ate (all units).
+                Drinks: 1 ml = 1 g, and the per-100g values are per 100 ml. A packaged item
+                ("lata", "garrafinha", "mini", "caixinha", "pacote") -> the real package size
+                of that product in Brazil.
+              - Per-100g values (carboidratos, gordura included): for a matched produto copy
+                calories_per_100g / protein_per_100g from the memory; otherwise use the
+                current Brazilian nutrition label of that product (for branded items) or the
+                TACO table (for generic foods).
+              - type "comida" ONLY with a matched comida id. Anything unmatched is type
+                "produto" with matched_id null, even a dish.
             """;
 
         // Split memory + user message into two content blocks so we can mark the
@@ -199,7 +208,9 @@ public class AiService {
         content.add(Map.of("type", "text", "text", userBlock));
 
         var text = call(KIND_CHAT, chatModel, sys, content);
-        return parseChatResult(text);
+        var byId = new HashMap<UUID, Produto>();
+        for (var p : produtos) byId.put(p.id(), p);
+        return parseChatResult(text, byId);
     }
 
     /**
@@ -749,27 +760,85 @@ public class AiService {
     }
 
     private ParseResult parseChatResult(String text) {
+        return parseChatResult(text, null);
+    }
+
+    /**
+     * {@code produtosById} non-null = chat mode: items carry grams + per-100g values and the
+     * totals are computed here ({@link #chatItem}). Null = photo mode: the model's totals.
+     */
+    ParseResult parseChatResult(String text, Map<UUID, Produto> produtosById) {
         try {
             var json = extractJson(text);
             var node = M.readTree(json);
             // Tolerate the AI returning a bare array (legacy shape).
-            if (node.isArray()) {
-                var items = new ArrayList<ParsedItem>(node.size());
-                for (var n : node) items.add(clamp(M.treeToValue(n, ParsedItem.class)));
-                return new ParseResult(null, null, items, List.of());
+            var arr = node.isArray() ? node : node.get("items");
+            var items = new ArrayList<ParsedItem>();
+            if (arr != null && arr.isArray()) {
+                for (var n : arr) items.add(clamp(produtosById != null
+                    ? chatItem(n, produtosById)
+                    : M.treeToValue(n, ParsedItem.class)));
             }
+            if (node.isArray()) return new ParseResult(null, null, items, List.of());
             String section = node.hasNonNull("section") ? node.get("section").asText() : null;
             Integer offset = node.hasNonNull("date_offset_days") ? node.get("date_offset_days").asInt() : null;
-            var items = new ArrayList<ParsedItem>();
-            var arr = node.get("items");
-            if (arr != null && arr.isArray()) {
-                for (var n : arr) items.add(clamp(M.treeToValue(n, ParsedItem.class)));
-            }
             return new ParseResult(section, offset, items, parseCopies(node.get("copy")));
         } catch (Exception e) {
             LOG.warn("AI returned non-JSON: " + text, e);
             return new ParseResult(null, null, List.of(), List.of());
         }
+    }
+
+    /**
+     * One chat item: the model gives grams + per-100g values; LLM arithmetic is not trusted.
+     * A matched produto (owned, in {@code produtosById}) uses its stored per-gram macros, so
+     * only the grams come from the AI. Anything else uses the AI's per-100g × grams. An
+     * unmatched "comida" becomes a free-text produto so it is stored in grams, not "1 porção".
+     * A matched comida keeps its estimate as a fallback; ChatService recomputes it from the
+     * comida's composition. Legacy totals ("calories", ...) are used only when per-100g is absent.
+     */
+    static ParsedItem chatItem(JsonNode n, Map<UUID, Produto> produtosById) {
+        String type = textOrNull(n, "type");
+        String mid  = textOrNull(n, "matched_id");
+        String name = textOrNull(n, "name");
+        double qty  = n.path("quantity").asDouble(1);
+        double g    = Math.max(0, Math.min(n.path("estimated_grams").asDouble(0), MAX_GRAMS));
+        if (!"comida".equalsIgnoreCase(type) || mid == null) type = "produto";
+
+        Produto p = null;
+        if ("produto".equals(type) && mid != null) {
+            try { p = produtosById.get(UUID.fromString(mid)); } catch (IllegalArgumentException ignored) {}
+        }
+        Double c100 = per100(n, "calories_per_100g", MAX_CAL_PER_100G);
+        Double p100 = per100(n, "protein_per_100g",  MAX_PROT_PER_100G);
+        Double k100 = per100(n, "carbs_per_100g",    100.0);
+        Double f100 = per100(n, "fat_per_100g",      100.0);
+        if (p != null) {
+            c100 = p.caloriesPerGram() * 100;
+            p100 = p.proteinPerGram() * 100;
+            if (p.carbsPerGram() != null) k100 = p.carbsPerGram() * 100;
+            if (p.fatPerGram()   != null) f100 = p.fatPerGram()   * 100;
+        }
+
+        if (c100 == null) {
+            // Model ignored the per-100g shape: fall back to its totals.
+            return new ParsedItem(type, mid, name, qty, g,
+                n.path("calories").asInt(0), n.path("protein").asDouble(0),
+                n.hasNonNull("carbs") ? n.get("carbs").asDouble() : null,
+                n.hasNonNull("fat")   ? n.get("fat").asDouble()   : null);
+        }
+        double f = g / 100.0;
+        return new ParsedItem(type, mid, name, qty, g,
+            (int) Math.round(c100 * f),
+            p100 == null ? 0 : Math.round(p100 * f * 10.0) / 10.0,
+            k100 == null ? null : Math.round(k100 * f * 10.0) / 10.0,
+            f100 == null ? null : Math.round(f100 * f * 10.0) / 10.0);
+    }
+
+    private static Double per100(JsonNode n, String field, double max) {
+        var v = n.get(field);
+        if (v == null || !v.isNumber()) return null;
+        return Math.max(0, Math.min(v.asDouble(), max));
     }
 
     /**
